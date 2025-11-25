@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/register_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://zpzfmbtfaqnpewztblol.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwemZtYnRmYXFucGV3enRibG9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5ODQyNDEsImV4cCI6MjA3NzU2MDI0MX0.VPoiOJchcPBXHp2uVcawHI1toPqwUS0RcaoMOTAX-EA',
+  );
+
   runApp(const MyApp());
 }
 
@@ -11,151 +20,81 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Speech to Text',
-      debugShowCheckedModeBanner: false,
+      title: 'Voice Logger',
       theme: ThemeData(
-        primarySwatch: Colors.indigo,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const SpeechScreen(),
+      // Start with the Splash Screen to decide where to go
+      home: const SplashScreen(),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        // Placeholder Dashboard for now
+        '/dashboard': (context) => Scaffold(
+          appBar: AppBar(title: const Text("Dashboard")),
+          body: Center(
+            child: ElevatedButton(
+              onPressed: () async {
+                await Supabase.instance.client.auth.signOut();
+                Navigator.pushReplacementNamed(context, '/login');
+              },
+              child: const Text("Logout (Testing)"),
+            ),
+          ),
+        ),
+      },
     );
   }
 }
 
-class SpeechScreen extends StatefulWidget {
-  const SpeechScreen({super.key});
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
 
   @override
-  State<SpeechScreen> createState() => _SpeechScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SpeechScreenState extends State<SpeechScreen> {
-  late stt.SpeechToText _speech;
-  bool _isListening = false;
-  String _text = 'Press the button and start speaking...';
-  String _statusLog = 'Status: Ready'; // New variable for debugging
-  double _confidence = 1.0;
-
+class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
+    _checkSession();
   }
 
-  Future<void> _listen() async {
-    // 1. Initialize with explicit error handling for the UI
-    bool available = await _speech.initialize(
-      onStatus: (val) {
-        // Update the UI with the exact status from the engine
-        setState(() => _statusLog = 'Status: $val');
-        if (val == 'done' || val == 'notListening') {
-          setState(() => _isListening = false);
-        }
-      },
-      onError: (val) {
-        // Show errors in Red
-        setState(() {
-          _statusLog = 'Error: ${val.errorMsg}';
-          _isListening = false;
-        });
-      },
-    );
+  Future<void> _checkSession() async {
+    // Artificial delay to show splash logo
+    await Future.delayed(const Duration(seconds: 1));
 
-    if (available) {
-      setState(() {
-        _isListening = true;
-        _statusLog = 'Status: Listening...';
-      });
-      
-      // 2. Start Listening with longer timeouts
-      _speech.listen(
-        onResult: (val) {
-          setState(() {
-            _text = val.recognizedWords;
-            if (val.hasConfidenceRating && val.confidence > 0) {
-              _confidence = val.confidence;
-            }
-          });
-        },
-        // Wait 30 seconds for speech
-        listenFor: const Duration(seconds: 30),
-        // Wait 3 seconds of silence before stopping
-        pauseFor: const Duration(seconds: 3),
-        // Try to use the system default locale
-        localeId: "en_US", 
-        // Partial results show text *while* you speak, not just at the end
-        partialResults: true, 
-      );
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
     } else {
-      setState(() {
-        _isListening = false;
-        _text = "Speech recognition denied or not available.";
-      });
-    }
-  }
+      // 🕵️ EXTRA SAFETY CHECK
+      // Check if user has a profile. If DB failed during registration, 
+      // they might exist in Auth but not DB.
+      final profile = await supabase
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
 
-  void _stop() {
-    _speech.stop();
-    setState(() => _isListening = false);
+      if (profile == null && mounted) {
+        // Limbo state - for MVP, we just sign them out and ask to register again
+        await supabase.auth.signOut();
+        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+      } else if (mounted) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Audio to Text Debugger')),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _isListening ? _stop : _listen,
-        backgroundColor: _isListening ? Colors.red : Colors.indigo,
-        child: Icon(_isListening ? Icons.stop : Icons.mic),
-      ),
-      body: SingleChildScrollView(
-        reverse: true,
-        padding: const EdgeInsets.all(30.0),
-        child: Column(
-          children: [
-            // STATUS DEBUGGER (New)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.grey[200],
-              width: double.infinity,
-              child: Text(
-                _statusLog,
-                style: TextStyle(
-                  color: _statusLog.contains('Error') ? Colors.red : Colors.blue,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 10),
-            
-            Text(
-              'Confidence: ${(_confidence * 100.0).toStringAsFixed(1)}%',
-              style: const TextStyle(fontSize: 16.0, color: Colors.grey),
-            ),
-            const SizedBox(height: 20),
-            
-            // MAIN TEXT BOX
-            Container(
-              padding: const EdgeInsets.all(16),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                _text,
-                style: const TextStyle(
-                  fontSize: 24.0,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }
