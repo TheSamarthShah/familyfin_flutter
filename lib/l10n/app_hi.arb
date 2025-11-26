@@ -1,0 +1,19 @@
+{
+    "appTitle": "फैमिली फिन",
+    "loginTitle": "पुनः स्वागत है",
+    "loginBtn": "लॉग इन करें",
+    "registerLink": "नया खाता बनाएं",
+    "createAccountTitle": "खाता बनाएं",
+    "subtitle": "तुरंत अपने लॉग्स ट्रैक करना शुरू करें।",
+    "emailLabel": "ईमेल पता",
+    "passwordLabel": "पासवर्ड",
+    "fullNameLabel": "पूरा नाम",
+    "currencyLabel": "मुद्रा",
+    "getStartedBtn": "शुरू करें",
+    "dashboardTitle": "मेरा डैशबोर्ड",
+
+    "requiredField": "अनिवार्य है",
+    "invalidEmail": "मान्य ईमेल दर्ज करें",
+    "passwordTooShort": "पासवर्ड कम से कम 6 अक्षरों का होना चाहिए",
+    "loginSubtitle": "अपने खर्चों का प्रबंधन करने के लिए लॉग इन करें"
+}

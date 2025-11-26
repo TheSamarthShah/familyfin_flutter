@@ -1,4 +1,6 @@
+import 'package:familyfin/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/responsive_center.dart';
 import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -13,17 +15,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   
   bool _isSubmitting = false;
-
-  // Data State
   List<Map<String, dynamic>> _currencyList = [];
   bool _isLoadingCurrencies = true;
 
-  // Controllers
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   String? _selectedCurrency;
   String _lang = 'en'; 
+
+  // ✨ ADDED: State variable for visibility
+  bool _isPasswordVisible = false;
+  
+  double _passwordStrength = 0.0;
+  Color _strengthColor = Colors.grey;
 
   @override
   void initState() {
@@ -46,6 +51,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  void _updatePasswordStrength(String value) {
+    setState(() {
+      if (value.isEmpty) {
+        _passwordStrength = 0.0;
+        _strengthColor = Colors.grey;
+      } else if (value.length < 6) {
+        _passwordStrength = 0.3;
+        _strengthColor = Colors.redAccent;
+      } else if (value.length < 9) {
+        _passwordStrength = 0.6;
+        _strengthColor = Colors.amber;
+      } else {
+        _passwordStrength = 1.0;
+        _strengthColor = Colors.greenAccent; // Visual reward
+      }
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCurrency == null) return;
@@ -53,8 +76,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // ✅ UPDATED: Calling the new 'registerUser' method
-      // Matches the "Solo-First" architecture (No family creation logic here)
       await _authService.registerUser(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
@@ -63,15 +84,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         languageCode: _lang,
       );
 
-      if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
-      }
+      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
     } catch (e) {
       if (mounted) {
-        String msg = e.toString().contains("Exception:") 
-            ? e.toString().split("Exception:").last.trim() 
-            : e.toString();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        String msg = "Registration failed. Please try again.";
+        if (e.toString().contains("already registered")) msg = "This email is already in use.";
+        
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red[700]));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -80,93 +99,149 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Create Account"), elevation: 0),
+      backgroundColor: theme.colorScheme.primary, 
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const BackButton(color: Colors.white), // Back Anchor
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
+        child: ResponsiveCenter(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                "Start tracking your logs instantly.",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              Text(
+                l10n.createAccountTitle,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold, 
+                  color: Colors.white
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.subtitle,
+                style: const TextStyle(fontSize: 16, color: Colors.white70),
               ),
               const SizedBox(height: 30),
 
-              // Name
-              TextFormField(
-                controller: _nameCtrl,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: "Full Name",
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.isEmpty ? "Required" : null,
-              ),
-              const SizedBox(height: 16),
+              Card(
+                elevation: 8,
+                shadowColor: Colors.black38,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _nameCtrl,
+                          textCapitalization: TextCapitalization.words,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.name],
+                          decoration: InputDecoration(
+                            labelText: l10n.fullNameLabel,
+                            prefixIcon: const Icon(Icons.person_outline),
+                          ),
+                          validator: (v) => (v == null || v.isEmpty) ? l10n.requiredField : null,
+                        ),
+                        const SizedBox(height: 16),
 
-              // Email
-              TextFormField(
-                controller: _emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.contains('@') ? null : "Invalid email",
-              ),
-              const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.email],
+                          decoration: InputDecoration(
+                            labelText: l10n.emailLabel,
+                            prefixIcon: const Icon(Icons.email_outlined),
+                          ),
+                          validator: (v) => (v != null && v.contains('@')) ? null : l10n.invalidEmail,
+                        ),
+                        const SizedBox(height: 16),
 
-              // Password
-              TextFormField(
-                controller: _passCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.length < 6 ? "Min 6 chars" : null,
-              ),
-              const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _passCtrl,
+                          obscureText: !_isPasswordVisible, // ✨ UPDATED
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.newPassword],
+                          onChanged: _updatePasswordStrength,
+                          decoration: InputDecoration(
+                            labelText: l10n.passwordLabel,
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            // ✨ UPDATED: Interactive Toggle Icon
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible 
+                                  ? Icons.visibility_outlined 
+                                  : Icons.visibility_off_outlined,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isPasswordVisible = !_isPasswordVisible;
+                                });
+                              },
+                            ),
+                          ),
+                          validator: (v) => (v != null && v.length >= 6) ? null : l10n.passwordTooShort,
+                        ),
+                        
+                        // Visual Strength Meter (Gamification)
+                        if (_passCtrl.text.isNotEmpty) 
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                            child: LinearProgressIndicator(
+                              value: _passwordStrength,
+                              backgroundColor: Colors.grey[200],
+                              color: _strengthColor,
+                              minHeight: 4,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
 
-              // Currency
-              _isLoadingCurrencies 
-                ? const LinearProgressIndicator()
-                : DropdownButtonFormField<String>(
-                    value: _selectedCurrency,
-                    decoration: const InputDecoration(
-                      labelText: "Currency",
-                      prefixIcon: Icon(Icons.currency_exchange),
-                      border: OutlineInputBorder(),
+                        const SizedBox(height: 16),
+
+                        _isLoadingCurrencies 
+                          ? const LinearProgressIndicator()
+                          : DropdownButtonFormField<String>(
+                              value: _selectedCurrency,
+                              decoration: InputDecoration(
+                                labelText: l10n.currencyLabel,
+                                prefixIcon: const Icon(Icons.currency_exchange),
+                              ),
+                              items: _currencyList.map((c) {
+                                return DropdownMenuItem<String>(
+                                  value: c['code'],
+                                  child: Text("${c['symbol']} ${c['name']}"),
+                                );
+                              }).toList(),
+                              onChanged: (val) => setState(() => _selectedCurrency = val),
+                            ),
+                        const SizedBox(height: 30),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: _isSubmitting
+                              ? const Center(child: CircularProgressIndicator())
+                              : ElevatedButton(
+                                  onPressed: _submit,
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 18),
+                                  ),
+                                  child: Text(l10n.getStartedBtn),
+                                ),
+                        ),
+                      ],
                     ),
-                    items: _currencyList.map((c) {
-                      return DropdownMenuItem<String>(
-                        value: c['code'],
-                        child: Text("${c['symbol']} ${c['name']}"),
-                      );
-                    }).toList(),
-                    onChanged: (val) => setState(() => _selectedCurrency = val),
                   ),
-
-              const SizedBox(height: 30),
-
-              _isSubmitting
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _submit,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.deepPurple,
-                        foregroundColor: Colors.white,
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      child: const Text("Get Started"),
-                    ),
+                ),
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         ),

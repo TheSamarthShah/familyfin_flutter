@@ -1,5 +1,9 @@
+import 'package:familyfin/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'core/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 
@@ -20,24 +24,44 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Voice Logger',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      // Start with the Splash Screen to decide where to go
+      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+      debugShowCheckedModeBanner: false,
+
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
+
+      // 1. Force Gujarati for testing 
+      // (Remove this line later to let the phone settings decide)
+      locale: const Locale('en'), 
+
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      
+      // 2. Add Gujarati and Hindi to supported locales
+      supportedLocales: const [
+        Locale('en'), // English
+        Locale('hi'), // Hindi
+        Locale('gu'), // Gujarati
+      ],
+
       home: const SplashScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        // Placeholder Dashboard for now
         '/dashboard': (context) => Scaffold(
-          appBar: AppBar(title: const Text("Dashboard")),
+          appBar: AppBar(title: Text(AppLocalizations.of(context)?.dashboardTitle ?? "Dashboard")),
           body: Center(
             child: ElevatedButton(
               onPressed: () async {
                 await Supabase.instance.client.auth.signOut();
-                Navigator.pushReplacementNamed(context, '/login');
+                if (context.mounted) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
               },
               child: const Text("Logout (Testing)"),
             ),
@@ -63,7 +87,6 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkSession() async {
-    // Artificial delay to show splash logo
     await Future.delayed(const Duration(seconds: 1));
 
     final supabase = Supabase.instance.client;
@@ -72,9 +95,6 @@ class _SplashScreenState extends State<SplashScreen> {
     if (user == null) {
       if (mounted) Navigator.pushReplacementNamed(context, '/login');
     } else {
-      // 🕵️ EXTRA SAFETY CHECK
-      // Check if user has a profile. If DB failed during registration, 
-      // they might exist in Auth but not DB.
       final profile = await supabase
           .from('profiles')
           .select()
@@ -82,7 +102,6 @@ class _SplashScreenState extends State<SplashScreen> {
           .maybeSingle();
 
       if (profile == null && mounted) {
-        // Limbo state - for MVP, we just sign them out and ask to register again
         await supabase.auth.signOut();
         if (mounted) Navigator.pushReplacementNamed(context, '/login');
       } else if (mounted) {

@@ -1,0 +1,22 @@
+{
+    "appTitle": "Family Fin",
+    "@appTitle": {
+      "description": "The name of the application"
+    },
+    "loginTitle": "Welcome Back",
+    "loginBtn": "Login",
+    "registerLink": "Create New Account",
+    "createAccountTitle": "Create Account",
+    "subtitle": "Start tracking your logs instantly.",
+    "emailLabel": "Email Address",
+    "passwordLabel": "Password",
+    "fullNameLabel": "Full Name",
+    "currencyLabel": "Currency",
+    "getStartedBtn": "Get Started",
+    "dashboardTitle": "My Dashboard",
+    
+    "requiredField": "Required",
+    "invalidEmail": "Please enter a valid email",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "loginSubtitle": "Login to manage your expenses"
+}

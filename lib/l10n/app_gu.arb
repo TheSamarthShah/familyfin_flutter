@@ -1,0 +1,19 @@
+{
+    "appTitle": "ફેમિલી ફિન",
+    "loginTitle": "ફરી સ્વાગત છે",
+    "loginBtn": "લોગ ઇન",
+    "registerLink": "નવું ખાતું બનાવો",
+    "createAccountTitle": "ખાતું બનાવો",
+    "subtitle": "તમારા લોગ્સને તરત જ ટ્રેક કરવાનું શરૂ કરો.",
+    "emailLabel": "ઇમેઇલ સરનામું",
+    "passwordLabel": "પાસવર્ડ",
+    "fullNameLabel": "પૂરું નામ",
+    "currencyLabel": "ચલણ",
+    "getStartedBtn": "શરૂ કરો",
+    "dashboardTitle": "મારું ડેશબોર્ડ",
+
+    "requiredField": "આવશ્યક છે",
+    "invalidEmail": "કૃપા કરીને માન્ય ઇમેઇલ દાખલ કરો",
+    "passwordTooShort": "પાસવર્ડ ઓછામાં ઓછા 6 અક્ષરોનો હોવો જોઈએ",
+    "loginSubtitle": "તમારા ખર્ચનું સંચાલન કરવા માટે લોગ ઇન કરો"
+}
