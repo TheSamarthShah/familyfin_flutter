@@ -1,0 +1,313 @@
+-- =============================================================================
+-- 🛠 VOICE LOGGER APP - FULL FINANCE SCHEMA
+-- =============================================================================
+
+-- 1. CLEANUP
+drop table if exists public.logs cascade;
+drop table if exists public.categories cascade;
+drop table if exists public.accounts cascade; 
+drop table if exists public.profiles cascade;
+drop table if exists public.families cascade;
+drop table if exists public.currencies cascade;
+drop type if exists log_status;
+drop type if exists user_role;
+drop type if exists log_type;
+drop type if exists account_type; 
+
+-- 2. ENUMS
+create type log_status as enum ('draft', 'confirmed');
+create type user_role as enum ('admin', 'member'); 
+create type log_type as enum ('expense', 'income', 'transfer', 'investment');
+create type account_type as enum ('cash', 'bank', 'credit', 'wallet', 'investment', 'other');
+
+-- =============================================================================
+-- 3. TABLES
+-- =============================================================================
+
+create table public.families (
+  id uuid default gen_random_uuid() primary key,
+  name text default 'My Family',
+  created_at timestamp with time zone default now()
+);
+
+create table public.currencies (
+  code text primary key check (length(code) = 3),
+  name text not null,
+  symbol text
+);
+
+create table public.profiles (
+  id uuid references auth.users not null primary key,
+  family_id uuid references public.families(id), 
+  email text,
+  full_name text,
+  currency_code text references public.currencies(code) not null default 'INR',
+  log_input_language text default 'en',
+  role user_role default 'admin',
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone
+);
+
+create table public.accounts (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) not null,
+  name text not null, 
+  type account_type default 'cash',
+  balance decimal(12,2) default 0.00, 
+  is_credit boolean default false, 
+  created_at timestamp with time zone default now()
+);
+
+create table public.categories (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id), 
+  name text not null,
+  type log_type not null default 'expense',
+  icon_emoji text default '📝',
+  keywords text[], 
+  created_at timestamp with time zone default now()
+);
+
+create table public.logs (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) not null,
+  category_id uuid references public.categories(id),
+  
+  -- ACCOUNTS LINKING
+  account_id uuid references public.accounts(id), 
+  target_account_id uuid references public.accounts(id), 
+  
+  type log_type not null default 'expense',
+  
+  item_name text,
+  
+  -- 💰 CORE MATH COLUMN
+  -- This MUST always be in the User's Home Currency (e.g. 840 INR)
+  amount decimal(10,2) default 0.00,
+  
+  -- 🌍 FOREIGN CURRENCY CONTEXT
+  -- Only filled if the user spent in a different currency (e.g. 10 USD)
+  foreign_amount decimal(10,2),      
+  foreign_currency_code text references public.currencies(code), 
+  
+  original_text text,
+  
+  -- TAGS
+  tags text[] default '{}',
+
+  -- LOCATION METADATA
+  location_name text,        
+  latitude double precision, 
+  longitude double precision,
+  
+  status log_status default 'draft',
+  log_date timestamp with time zone default now(),
+  created_at timestamp with time zone default now()
+);
+
+-- =============================================================================
+-- 4. SEED DATA
+-- =============================================================================
+
+insert into public.currencies (code, name, symbol) values
+  ('INR', 'Indian Rupee', '₹'),
+  ('USD', 'US Dollar', '$'),
+  ('EUR', 'Euro', '€'),
+  ('GBP', 'British Pound', '£'),
+  ('JPY', 'Japanese Yen', '¥');
+
+-- EXPENSES
+insert into public.categories (type, name, icon_emoji, keywords) values
+  ('expense', 'Food & Drink', '🍔', ARRAY['lunch', 'dinner', 'breakfast', 'coffee', 'groceries']),
+  ('expense', 'Transport', '🚌', ARRAY['bus', 'taxi', 'uber', 'gas', 'fuel']),
+  ('expense', 'Utilities', '💡', ARRAY['electric', 'water', 'internet', 'bill']),
+  ('expense', 'Housing', '🏠', ARRAY['rent', 'maintenance']),
+  ('expense', 'Health', '🏥', ARRAY['doctor', 'medicine', 'gym']);
+
+-- INCOME
+insert into public.categories (type, name, icon_emoji, keywords) values
+  ('income', 'Salary', '💰', ARRAY['paycheck', 'salary', 'wages']),
+  ('income', 'Freelance', '💻', ARRAY['project', 'gig', 'upwork']),
+  ('income', 'Gift', '🎁', ARRAY['gift', 'birthday']);
+
+-- INVESTMENT
+insert into public.categories (type, name, icon_emoji, keywords) values
+  ('investment', 'Stocks', '📈', ARRAY['shares', 'market', 'equity']),
+  ('investment', 'Crypto', '₿', ARRAY['bitcoin', 'eth', 'crypto']),
+  ('investment', 'Mutual Funds', '🏦', ARRAY['sip', 'mutual fund']);
+
+-- TRANSFERS
+insert into public.categories (type, name, icon_emoji, keywords) values
+  ('transfer', 'General Transfer', '🔄', ARRAY['move', 'transfer', 'shift']),
+  ('transfer', 'Credit Card Bill', '💳', ARRAY['credit card', 'cc bill']);
+
+-- =============================================================================
+-- 5. RLS
+-- =============================================================================
+
+alter table public.families enable row level security;
+alter table public.currencies enable row level security;
+alter table public.profiles enable row level security;
+alter table public.categories enable row level security;
+alter table public.logs enable row level security;
+alter table public.accounts enable row level security;
+
+-- Currencies: Public
+create policy "Everyone can view currencies" on public.currencies for select using (true);
+
+-- Families: View own
+create policy "View own family" on public.families for select 
+using (id in (select family_id from public.profiles where id = auth.uid()));
+
+-- Profiles: View connected
+create policy "View connected profiles" on public.profiles for select 
+using (
+  id = auth.uid() OR
+  (family_id is not null AND family_id = (select family_id from public.profiles where id = auth.uid()))
+);
+create policy "Update own profile" on public.profiles for update using (auth.uid() = id);
+
+-- Accounts: View connected
+create policy "View connected accounts" on public.accounts for select 
+using (
+  user_id = auth.uid() OR
+  (
+    user_id in (
+      select id from public.profiles 
+      where family_id is not null 
+      and family_id = (select family_id from public.profiles where id = auth.uid())
+    )
+  )
+);
+create policy "Modify own accounts" on public.accounts for all using (auth.uid() = user_id);
+
+-- Logs: View connected
+create policy "View connected logs" on public.logs for select 
+using (
+  user_id = auth.uid() OR
+  (
+    user_id in (
+      select id from public.profiles 
+      where family_id is not null 
+      and family_id = (select family_id from public.profiles where id = auth.uid())
+    )
+  )
+);
+create policy "Modify own logs" on public.logs for all using (auth.uid() = user_id);
+
+-- Categories: View valid
+create policy "View valid categories" on public.categories for select 
+using (auth.uid() = user_id or user_id is null);
+
+create policy "Modify own categories" on public.categories for all 
+using (auth.uid() = user_id);
+
+-- =============================================================================
+-- 6. REGISTRATION FUNCTION
+-- =============================================================================
+
+create or replace function public.register_new_user(
+  full_name text,
+  currency_code text,
+  language_code text
+) 
+returns void as $$
+declare
+  new_user_id uuid;
+begin
+  new_user_id := auth.uid();
+  
+  if new_user_id is null then raise exception 'Not authenticated'; end if;
+  if exists (select 1 from public.profiles where id = new_user_id) then raise exception 'Profile exists'; end if;
+
+  insert into public.profiles (
+    id, email, full_name, currency_code, log_input_language, role, family_id
+  )
+  values (
+    new_user_id,
+    (select email from auth.users where id = new_user_id),
+    full_name,
+    currency_code,
+    language_code,
+    'admin',
+    NULL
+  );
+
+  insert into public.accounts (user_id, name, type, balance)
+  values (new_user_id, 'Cash', 'cash', 0.00);
+
+end;
+$$ language plpgsql security definer;
+
+
+
+-- =============================================================================
+-- 🛠 FIX: INFINITE RECURSION IN RLS POLICIES
+-- =============================================================================
+
+-- 1. Create a Helper Function to get Family ID safely
+-- 'SECURITY DEFINER' means this function runs with Admin privileges,
+-- allowing it to bypass the RLS check on the profiles table to get the ID.
+create or replace function public.get_auth_family_id()
+returns uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select family_id from public.profiles where id = auth.uid();
+$$;
+
+-- 2. Drop the Broken Recursive Policies
+drop policy if exists "View connected profiles" on public.profiles;
+drop policy if exists "View connected logs" on public.logs;
+drop policy if exists "View connected accounts" on public.accounts;
+drop policy if exists "View own family" on public.families;
+
+-- 3. Re-create Policies using the Safe Function
+
+-- PROFILES: Use the function instead of a subquery
+create policy "View connected profiles" on public.profiles for select
+using (
+  id = auth.uid() 
+  OR
+  (
+    family_id is not null 
+    AND 
+    family_id = get_auth_family_id() -- 👈 Uses helper, no recursion
+  )
+);
+
+-- LOGS: Use the function to find family members
+create policy "View connected logs" on public.logs for select
+using (
+  user_id = auth.uid() 
+  OR
+  (
+    user_id in (
+      select id from public.profiles 
+      where family_id is not null 
+      and family_id = get_auth_family_id() -- 👈 Uses helper
+    )
+  )
+);
+
+-- ACCOUNTS: Use the function
+create policy "View connected accounts" on public.accounts for select
+using (
+  user_id = auth.uid() 
+  OR
+  (
+    user_id in (
+      select id from public.profiles 
+      where family_id is not null 
+      and family_id = get_auth_family_id() -- 👈 Uses helper
+    )
+  )
+);
+
+-- FAMILIES: Use the function
+create policy "View own family" on public.families for select
+using (
+  id = get_auth_family_id()
+);

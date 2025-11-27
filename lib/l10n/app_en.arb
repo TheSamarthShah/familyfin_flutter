@@ -1,8 +1,5 @@
 {
     "appTitle": "Family Fin",
-    "@appTitle": {
-      "description": "The name of the application"
-    },
     "loginTitle": "Welcome Back",
     "loginBtn": "Login",
     "registerLink": "Create New Account",
@@ -13,10 +10,18 @@
     "fullNameLabel": "Full Name",
     "currencyLabel": "Currency",
     "getStartedBtn": "Get Started",
-    "dashboardTitle": "My Dashboard",
-    
     "requiredField": "Required",
     "invalidEmail": "Please enter a valid email",
     "passwordTooShort": "Password must be at least 6 characters",
-    "loginSubtitle": "Login to manage your expenses"
+    "loginSubtitle": "Login to manage your expenses",
+    
+    "dashboardTitle": "Overview",
+    "totalBalanceLabel": "Total Balance",
+    "safeToSpendLabel": "Safe to Spend",
+    "unverifiedCardTitle": "Action Required",
+    "unverifiedCardSubtitle": "You have {count} unverified transactions.",
+    "reviewBtn": "Review Now",
+    "recentActivityTitle": "Recent Activity",
+    "voiceLogBtn": "Voice Log",
+    "manualLogBtn": "Manual Entry"
 }

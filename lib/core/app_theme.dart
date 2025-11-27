@@ -174,4 +174,8 @@ class AppTheme {
       ),
     );
   }
+
+  static get expenseColor => Colors.pink;
+
+  static get incomeColor => Colors.greenAccent;
 }

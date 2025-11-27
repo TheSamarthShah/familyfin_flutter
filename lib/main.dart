@@ -1,4 +1,5 @@
 import 'package:familyfin/l10n/app_localizations.dart';
+import 'package:familyfin/screens/pages/dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,10 +30,8 @@ class MyApp extends StatelessWidget {
 
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.system, 
 
-      // 1. Force Gujarati for testing 
-      // (Remove this line later to let the phone settings decide)
       locale: const Locale('en'), 
 
       localizationsDelegates: const [
@@ -42,7 +41,6 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       
-      // 2. Add Gujarati and Hindi to supported locales
       supportedLocales: const [
         Locale('en'), // English
         Locale('hi'), // Hindi
@@ -53,20 +51,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/dashboard': (context) => Scaffold(
-          appBar: AppBar(title: Text(AppLocalizations.of(context)?.dashboardTitle ?? "Dashboard")),
-          body: Center(
-            child: ElevatedButton(
-              onPressed: () async {
-                await Supabase.instance.client.auth.signOut();
-                if (context.mounted) {
-                  Navigator.pushReplacementNamed(context, '/login');
-                }
-              },
-              child: const Text("Logout (Testing)"),
-            ),
-          ),
-        ),
+        '/dashboard': (context) => const DashboardScreen(), 
       },
     );
   }
@@ -87,6 +72,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkSession() async {
+    // Artificial delay to show splash logo
     await Future.delayed(const Duration(seconds: 1));
 
     final supabase = Supabase.instance.client;
@@ -94,17 +80,33 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (user == null) {
       if (mounted) Navigator.pushReplacementNamed(context, '/login');
-    } else {
+      return;
+    }
+
+    // 🛑 FIX: Wrap DB call in try-catch to prevent "Infinite Loading"
+    try {
       final profile = await supabase
           .from('profiles')
           .select()
           .eq('id', user.id)
           .maybeSingle();
 
-      if (profile == null && mounted) {
+      if (!mounted) return;
+
+      if (profile == null) {
+        // Real issue: Auth exists but Data is missing. Logout.
         await supabase.auth.signOut();
         if (mounted) Navigator.pushReplacementNamed(context, '/login');
-      } else if (mounted) {
+      } else {
+        // All good
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } catch (e) {
+      // ⚠️ NETWORK ERROR / OFFLINE
+      // If the DB check fails (e.g. no internet), we should still let the user in
+      // if they are authenticated locally. The Dashboard will handle offline/error states.
+      debugPrint("Splash DB Error: $e");
+      if (mounted) {
         Navigator.pushReplacementNamed(context, '/dashboard');
       }
     }
@@ -112,8 +114,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.primary, // Brand color splash
+      body: const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
     );
   }
 }

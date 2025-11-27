@@ -42,9 +42,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get getStartedBtn => 'Get Started';
 
   @override
-  String get dashboardTitle => 'My Dashboard';
-
-  @override
   String get requiredField => 'Required';
 
   @override
@@ -55,4 +52,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loginSubtitle => 'Login to manage your expenses';
+
+  @override
+  String get dashboardTitle => 'Overview';
+
+  @override
+  String get totalBalanceLabel => 'Total Balance';
+
+  @override
+  String get safeToSpendLabel => 'Safe to Spend';
+
+  @override
+  String get unverifiedCardTitle => 'Action Required';
+
+  @override
+  String unverifiedCardSubtitle(Object count) {
+    return 'You have $count unverified transactions.';
+  }
+
+  @override
+  String get reviewBtn => 'Review Now';
+
+  @override
+  String get recentActivityTitle => 'Recent Activity';
+
+  @override
+  String get voiceLogBtn => 'Voice Log';
+
+  @override
+  String get manualLogBtn => 'Manual Entry';
 }

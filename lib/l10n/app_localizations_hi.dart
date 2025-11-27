@@ -42,9 +42,6 @@ class AppLocalizationsHi extends AppLocalizations {
   String get getStartedBtn => 'शुरू करें';
 
   @override
-  String get dashboardTitle => 'मेरा डैशबोर्ड';
-
-  @override
   String get requiredField => 'अनिवार्य है';
 
   @override
@@ -55,4 +52,33 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get loginSubtitle => 'अपने खर्चों का प्रबंधन करने के लिए लॉग इन करें';
+
+  @override
+  String get dashboardTitle => 'मेरा डैशबोर्ड';
+
+  @override
+  String get totalBalanceLabel => 'Total Balance';
+
+  @override
+  String get safeToSpendLabel => 'Safe to Spend';
+
+  @override
+  String get unverifiedCardTitle => 'Action Required';
+
+  @override
+  String unverifiedCardSubtitle(Object count) {
+    return 'You have $count unverified transactions.';
+  }
+
+  @override
+  String get reviewBtn => 'Review Now';
+
+  @override
+  String get recentActivityTitle => 'Recent Activity';
+
+  @override
+  String get voiceLogBtn => 'Voice Log';
+
+  @override
+  String get manualLogBtn => 'Manual Entry';
 }

@@ -100,7 +100,7 @@ abstract class AppLocalizations {
     Locale('hi'),
   ];
 
-  /// The name of the application
+  /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
   /// **'Family Fin'**
@@ -166,12 +166,6 @@ abstract class AppLocalizations {
   /// **'Get Started'**
   String get getStartedBtn;
 
-  /// No description provided for @dashboardTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'My Dashboard'**
-  String get dashboardTitle;
-
   /// No description provided for @requiredField.
   ///
   /// In en, this message translates to:
@@ -195,6 +189,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Login to manage your expenses'**
   String get loginSubtitle;
+
+  /// No description provided for @dashboardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get dashboardTitle;
+
+  /// No description provided for @totalBalanceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Balance'**
+  String get totalBalanceLabel;
+
+  /// No description provided for @safeToSpendLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe to Spend'**
+  String get safeToSpendLabel;
+
+  /// No description provided for @unverifiedCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Action Required'**
+  String get unverifiedCardTitle;
+
+  /// No description provided for @unverifiedCardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You have {count} unverified transactions.'**
+  String unverifiedCardSubtitle(Object count);
+
+  /// No description provided for @reviewBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Review Now'**
+  String get reviewBtn;
+
+  /// No description provided for @recentActivityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Activity'**
+  String get recentActivityTitle;
+
+  /// No description provided for @voiceLogBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Log'**
+  String get voiceLogBtn;
+
+  /// No description provided for @manualLogBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual Entry'**
+  String get manualLogBtn;
 }
 
 class _AppLocalizationsDelegate
