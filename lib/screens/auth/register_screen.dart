@@ -76,6 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      // 1. Register
       await _authService.registerUser(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
@@ -83,6 +84,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         currencyCode: _selectedCurrency!,
         languageCode: _lang,
       );
+
+      // 2. ✅ Initialize Session Data
+      // (Even though we just sent it, we need to fetch the joined 'symbol' from the DB)
+      await _authService.initializeUserSession();
 
       if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
     } catch (e) {
@@ -96,7 +101,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;

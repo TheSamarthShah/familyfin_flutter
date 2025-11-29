@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/app_theme.dart';
+import '../../services/user_service.dart'; // ✅ Import UserService
 
 // --- ZONE A: HERO HEADER ---
 class BalanceHero extends StatelessWidget {
@@ -18,7 +19,12 @@ class BalanceHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final currencyFormat = NumberFormat.simpleCurrency(locale: 'en_IN');
+    
+    // ✅ FIX: Use User's preferred currency symbol
+    final currencyFormat = NumberFormat.currency(
+      symbol: UserService().currencySymbol, 
+      decimalDigits: 2
+    );
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
@@ -128,7 +134,7 @@ class ActionRequiredCard extends StatelessWidget {
   }
 }
 
-// --- ZONE C: MONTHLY PULSE (Income vs Expense) ---
+// --- ZONE C: MONTHLY PULSE ---
 class MonthlyPulse extends StatelessWidget {
   final double income;
   final double expense;
@@ -137,7 +143,8 @@ class MonthlyPulse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.compactSimpleCurrency(locale: 'en_IN');
+    // ✅ FIX: Compact currency with User Symbol (e.g. $1.2K or ₹1.2L)
+    final currencyFormat = NumberFormat.compactCurrency(symbol: UserService().currencySymbol);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -186,7 +193,7 @@ class MonthlyPulse extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             amount,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 20, 
               fontWeight: FontWeight.bold, 
               color: Colors.black87
@@ -209,7 +216,7 @@ class AccountsRail extends StatelessWidget {
     if (accounts.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
-      height: 140, // Fixed height for rail
+      height: 140, 
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -223,11 +230,12 @@ class AccountsRail extends StatelessWidget {
   }
 
   Widget _buildAccountCard(BuildContext context, Map<String, dynamic> account) {
-    final currencyFormat = NumberFormat.compactSimpleCurrency(locale: 'en_IN');
+    // ✅ FIX: Compact currency with User Symbol
+    final currencyFormat = NumberFormat.compactCurrency(symbol: UserService().currencySymbol);
+    
     final balance = (account['balance'] as num).toDouble();
     final type = account['type'] ?? 'cash';
     
-    // Icon Logic
     IconData icon = Icons.account_balance_wallet;
     if (type == 'bank') icon = Icons.account_balance;
     if (type == 'credit') icon = Icons.credit_card;
@@ -320,16 +328,58 @@ class QuickActions extends StatelessWidget {
     );
   }
 }
+// --- SECTION HEADER (Add this to the bottom of the file) ---
+class SectionHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback onSeeAll;
 
-// --- RECENT LOG TILE ---
-class RecentTransactionTile extends StatelessWidget {
-  final Map<String, dynamic> log;
-
-  const RecentTransactionTile({super.key, required this.log});
+  const SectionHeader({
+    super.key,
+    required this.title,
+    required this.onSeeAll,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.simpleCurrency(locale: 'en_IN');
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          TextButton(
+            onPressed: onSeeAll,
+            child: const Text("See All"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+// --- RECENT LOG TILE ---
+class RecentTransactionTile extends StatelessWidget {
+  final Map<String, dynamic> log;
+  final VoidCallback onTap;
+
+  const RecentTransactionTile({
+    super.key, 
+    required this.log, 
+    required this.onTap
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // ✅ FIX: Use User's preferred currency symbol
+    final currencyFormat = NumberFormat.currency(
+      symbol: UserService().currencySymbol, 
+      decimalDigits: 2
+    );
+    
     final bool isExpense = log['type'] == 'expense';
     final color = isExpense ? AppTheme.expenseColor : AppTheme.incomeColor;
     final prefix = isExpense ? "-" : "+";
@@ -342,6 +392,7 @@ class RecentTransactionTile extends StatelessWidget {
         border: Border.all(color: Colors.grey[100]!),
       ),
       child: ListTile(
+        onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: CircleAvatar(
           backgroundColor: color.withOpacity(0.1),

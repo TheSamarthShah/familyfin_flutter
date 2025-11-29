@@ -43,7 +43,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     try {
+      // 1. Sign In
       await _authService.signIn(_emailCtrl.text.trim(), _passCtrl.text.trim());
+      
+      // 2. ✅ Initialize Session Data (Currency, Name, etc.)
+      await _authService.initializeUserSession();
+
       if (mounted) Navigator.of(context).pushReplacementNamed('/dashboard');
     } catch (e) {
       if (mounted) _handleError(e);
@@ -51,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;

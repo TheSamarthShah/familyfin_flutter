@@ -430,3 +430,70 @@ drop trigger if exists on_log_change on public.logs;
 create trigger on_log_change
 after insert or update or delete on public.logs
 for each row execute function public.handle_balance_update();
+
+-- 1. DROP OLD VIEWS (To ensure clean recreation)
+drop view if exists view_confirmed_logs;
+drop view if exists view_draft_logs;
+
+-- 2. RECREATE CONFIRMED LOGS VIEW
+-- Now includes IDs and all new columns (tags, location, foreign currency)
+create or replace view view_confirmed_logs with (security_invoker = true) as
+select 
+  l.id,
+  l.user_id,
+  l.amount,
+  l.type,
+  l.item_name,
+  l.log_date,
+  l.created_at,
+  l.original_text,
+  
+  -- New Optional Fields
+  l.foreign_amount,
+  l.foreign_currency_code,
+  l.tags,
+  l.location_name,
+
+  -- JOINED IDs (Crucial for Edit Screen Dropdowns)
+  l.category_id,
+  l.account_id,
+
+  -- JOINED Display Data
+  c.name as category_name,
+  c.icon_emoji,
+  a.name as account_name
+from public.logs l
+left join public.categories c on l.category_id = c.id
+left join public.accounts a on l.account_id = a.id
+where l.status = 'confirmed';
+
+-- 3. RECREATE DRAFT LOGS VIEW
+create or replace view view_draft_logs with (security_invoker = true) as
+select 
+  l.id,
+  l.user_id,
+  l.amount,
+  l.type,
+  l.item_name,
+  l.original_text,
+  l.created_at,
+  l.log_date,
+  
+  -- New Optional Fields
+  l.foreign_amount,
+  l.foreign_currency_code,
+  l.tags,
+  l.location_name,
+
+  -- JOINED IDs
+  l.category_id,
+  l.account_id,
+
+  -- JOINED Display Data
+  c.name as category_name,
+  c.icon_emoji,
+  a.name as account_name
+from public.logs l
+left join public.categories c on l.category_id = c.id
+left join public.accounts a on l.account_id = a.id
+where l.status = 'draft';

@@ -1,3 +1,4 @@
+import 'package:familyfin/services/user_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
@@ -7,6 +8,36 @@ class AuthService {
   // 🌍 UTILITIES
   // ---------------------------------------------------------------------------
   
+Future<void> initializeUserSession() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
+
+      // Fetch Profile + join Currency table to get the Symbol
+      final response = await _supabase
+          .from('profiles')
+          .select('*, currencies(symbol)') 
+          .eq('id', user.id)
+          .single();
+
+      final currencyData = response['currencies'] as Map<String, dynamic>?;
+      final symbol = currencyData != null ? currencyData['symbol'] : '\$';
+
+      // Save to Singleton
+      UserService().setUserDetails(
+        id: user.id,
+        email: user.email ?? '',
+        fullName: response['full_name'] ?? 'FamilyFin User',
+        currencyCode: response['currency_code'] ?? 'USD',
+        currencySymbol: symbol,
+        languageCode: response['log_input_language'] ?? 'en',
+      );
+      
+
+    } catch (e) {
+      // If error (e.g. offline), UserService keeps default values
+    }
+  }
   /// Fetches the list of available currencies from the database.
   Future<List<Map<String, dynamic>>> getCurrencies() async {
     try {
