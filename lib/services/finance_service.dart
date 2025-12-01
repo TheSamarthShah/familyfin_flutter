@@ -252,4 +252,46 @@ class FinanceService {
       ]; // Fallback
     }
   }
+
+  Future<List<Map<String, dynamic>>> getLogsByMonth(
+    DateTime monthDate, {
+    String? categoryId,
+    String? accountId,
+    String? type, // 'income' or 'expense'
+  }) async {
+    try {
+      final userId = _supabase.auth.currentUser!.id;
+      
+      final startDate = DateTime(monthDate.year, monthDate.month, 1);
+      final nextMonth = DateTime(monthDate.year, monthDate.month + 1, 1);
+      final endDate = nextMonth.subtract(const Duration(seconds: 1));
+
+      // 1. Start Building Query
+      var query = _supabase
+          .from('view_confirmed_logs')
+          .select()
+          .eq('user_id', userId)
+          .gte('log_date', startDate.toIso8601String())
+          .lte('log_date', endDate.toIso8601String());
+
+      // 2. Apply Optional Filters
+      if (categoryId != null) {
+        query = query.eq('category_id', categoryId);
+      }
+      if (accountId != null) {
+        query = query.eq('account_id', accountId);
+      }
+      if (type != null && type != 'all') {
+        query = query.eq('type', type);
+      }
+
+      // 3. Execute
+      final response = await query.order('log_date', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching monthly logs: $e');
+      return [];
+    }
+  }
 }
