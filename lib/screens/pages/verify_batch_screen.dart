@@ -1,8 +1,8 @@
-import 'package:familyfin/core/app_theme.dart';
-import 'package:familyfin/screens/pages/edit_log_screen.dart';
-import 'package:familyfin/services/finance_service.dart';
-import 'package:familyfin/services/user_service.dart';
-import 'package:familyfin/widgets/responsive_center.dart';
+import 'package:foundation_app/core/app_theme.dart';
+import 'package:foundation_app/screens/pages/edit_log_screen.dart';
+import 'package:foundation_app/services/finance_service.dart';
+import 'package:foundation_app/services/user_service.dart';
+import 'package:foundation_app/widgets/responsive_center.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 

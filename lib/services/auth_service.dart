@@ -1,4 +1,4 @@
-import 'package:familyfin/services/user_service.dart';
+import 'package:foundation_app/services/user_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {

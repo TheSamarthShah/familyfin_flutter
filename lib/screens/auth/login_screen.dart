@@ -1,5 +1,5 @@
-import 'package:familyfin/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:foundation_app/l10n/app_localizations.dart';
 import '../../widgets/responsive_center.dart';
 import '../../services/auth_service.dart';
 

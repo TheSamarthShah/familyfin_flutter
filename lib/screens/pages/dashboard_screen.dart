@@ -1,8 +1,8 @@
-import 'package:familyfin/l10n/app_localizations.dart';
-import 'package:familyfin/screens/pages/edit_log_screen.dart';
-import 'package:familyfin/screens/pages/log_detail_screen.dart';
-import 'package:familyfin/screens/pages/verify_batch_screen.dart';
-import 'package:familyfin/widgets/dashboard_widgets.dart'; // Ensure this matches your file structure
+import 'package:foundation_app/l10n/app_localizations.dart';
+import 'package:foundation_app/screens/pages/edit_log_screen.dart';
+import 'package:foundation_app/screens/pages/log_detail_screen.dart';
+import 'package:foundation_app/screens/pages/verify_batch_screen.dart';
+import 'package:foundation_app/widgets/dashboard_widgets.dart'; // Ensure this matches your file structure
 import 'package:flutter/material.dart';
 import '../../widgets/responsive_center.dart';
 import '../../services/finance_service.dart';

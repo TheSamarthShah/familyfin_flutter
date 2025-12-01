@@ -1,5 +1,5 @@
-name: familyfin
-description: "A new Flutter project."
+name: foundation_app
+description: Voice-first personal finance tracker.
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -68,9 +68,28 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
+  flutter_launcher_icons: ^0.13.1
+  rename: ^3.1.0
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21 # Required for adaptive icons
+  
+  # 🎨 Android Adaptive Icon Settings
+  # This makes the icon look good on newer Androids (Circle/Squircle shapes)
+  adaptive_icon_background: "#512DA8" # Your Brand Purple
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
 
+  # Web support (optional)
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#512DA8"
+    theme_color: "#512DA8"
 # The following section is specific to Flutter packages.
 flutter:
 

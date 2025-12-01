@@ -1,4 +1,4 @@
-import 'package:familyfin/screens/pages/edit_log_screen.dart';
+import 'package:foundation_app/screens/pages/edit_log_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/app_theme.dart';

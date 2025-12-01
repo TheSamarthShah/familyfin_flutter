@@ -1,8 +1,8 @@
-import 'package:familyfin/l10n/app_localizations.dart';
-import 'package:familyfin/screens/pages/all_logs_screen.dart';
-import 'package:familyfin/screens/pages/dashboard_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; 
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:foundation_app/l10n/app_localizations.dart';
+import 'package:foundation_app/screens/pages/all_logs_screen.dart';
+import 'package:foundation_app/screens/pages/dashboard_screen.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/app_theme.dart';

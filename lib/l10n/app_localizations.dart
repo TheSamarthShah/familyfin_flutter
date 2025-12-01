@@ -103,7 +103,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Family Fin'**
+  /// **'Foundation'**
   String get appTitle;
 
   /// No description provided for @loginTitle.

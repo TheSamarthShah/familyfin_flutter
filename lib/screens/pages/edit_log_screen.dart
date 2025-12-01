@@ -1,7 +1,7 @@
-import 'package:familyfin/core/app_theme.dart';
-import 'package:familyfin/services/finance_service.dart';
-import 'package:familyfin/services/user_service.dart';
-import 'package:familyfin/widgets/common_selector.dart';
+import 'package:foundation_app/core/app_theme.dart';
+import 'package:foundation_app/services/finance_service.dart';
+import 'package:foundation_app/services/user_service.dart';
+import 'package:foundation_app/widgets/common_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';

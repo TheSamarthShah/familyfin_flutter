@@ -1,5 +1,5 @@
-import 'package:familyfin/screens/pages/log_detail_screen.dart';
-import 'package:familyfin/widgets/dashboard_widgets.dart';
+import 'package:foundation_app/screens/pages/log_detail_screen.dart';
+import 'package:foundation_app/widgets/dashboard_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../widgets/responsive_center.dart';
