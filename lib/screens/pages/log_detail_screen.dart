@@ -123,7 +123,7 @@ class LogDetailSheet extends StatelessWidget {
   Navigator.pop(context);
   
   // Navigate to Edit Screen
-  final bool? result = await Navigator.push(
+  await Navigator.push(
     context, 
     MaterialPageRoute(builder: (_) => EditLogScreen(log: log)),
   );

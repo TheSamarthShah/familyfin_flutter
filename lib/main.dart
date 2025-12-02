@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:foundation_app/l10n/app_localizations.dart';
 import 'package:foundation_app/screens/pages/all_logs_screen.dart';
-import 'package:foundation_app/screens/pages/dashboard_screen.dart'; 
+import 'package:foundation_app/screens/pages/dashboard_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/app_theme.dart';
@@ -32,9 +32,9 @@ class MyApp extends StatelessWidget {
 
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system, 
+      themeMode: ThemeMode.system,
 
-      locale: const Locale('en'), 
+      locale: const Locale('en'),
 
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -42,7 +42,7 @@ class MyApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      
+
       supportedLocales: const [
         Locale('en'), // English
         Locale('hi'), // Hindi
@@ -53,8 +53,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/dashboard': (context) => const DashboardScreen(), 
-        '/all_logs': (context) => const AllLogsScreen(), 
+        '/dashboard': (context) => const DashboardScreen(),
+        '/all_logs': (context) => const AllLogsScreen(),
       },
     );
   }

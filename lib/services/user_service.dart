@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class UserService {
   // 1. Singleton Setup
   static final UserService _instance = UserService._internal();
