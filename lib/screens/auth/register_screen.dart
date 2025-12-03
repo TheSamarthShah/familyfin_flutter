@@ -24,7 +24,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedCurrency;
   String _lang = 'en'; 
 
-  // ✨ ADDED: State variable for visibility
   bool _isPasswordVisible = false;
   
   double _passwordStrength = 0.0;
@@ -55,16 +54,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       if (value.isEmpty) {
         _passwordStrength = 0.0;
-        _strengthColor = Colors.grey;
+        _strengthColor = Theme.of(context).colorScheme.outline; // Adaptive grey
       } else if (value.length < 6) {
         _passwordStrength = 0.3;
-        _strengthColor = Colors.redAccent;
+        _strengthColor = Theme.of(context).colorScheme.error; // Adaptive Red
       } else if (value.length < 9) {
         _passwordStrength = 0.6;
-        _strengthColor = Colors.amber;
+        _strengthColor = Colors.amber; // Semantic Amber (universal)
       } else {
         _passwordStrength = 1.0;
-        _strengthColor = Colors.greenAccent; // Visual reward
+        _strengthColor = Colors.greenAccent[700]!; // Semantic Green
       }
     });
   }
@@ -76,7 +75,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // 1. Register
       await _authService.registerUser(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
@@ -85,33 +83,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
         languageCode: _lang,
       );
 
-      // 2. ✅ Initialize Session Data
-      // (Even though we just sent it, we need to fetch the joined 'symbol' from the DB)
       await _authService.initializeUserSession();
 
       if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/dashboard', (route) => false);
     } catch (e) {
       if (mounted) {
+        final theme = Theme.of(context);
         String msg = "Registration failed. Please try again.";
         if (e.toString().contains("already registered")) msg = "This email is already in use.";
         
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red[700]));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg, style: TextStyle(color: theme.colorScheme.onError)), 
+            backgroundColor: theme.colorScheme.error
+          )
+        );
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
+    // ✅ Adaptive Colors (Matches Login Screen Logic)
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor = isDark ? theme.colorScheme.surface : theme.colorScheme.primary;
+    final onBackgroundColor = isDark ? theme.colorScheme.onSurface : theme.colorScheme.onPrimary;
+
     return Scaffold(
-      backgroundColor: theme.colorScheme.primary, 
+      backgroundColor: backgroundColor, 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const BackButton(color: Colors.white), // Back Anchor
+        leading: BackButton(color: onBackgroundColor), // Adaptive Back Button
       ),
       body: SingleChildScrollView(
         child: ResponsiveCenter(
@@ -121,20 +129,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 l10n.createAccountTitle,
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold, 
-                  color: Colors.white
+                  color: onBackgroundColor
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 l10n.subtitle,
-                style: const TextStyle(fontSize: 16, color: Colors.white70),
+                style: TextStyle(fontSize: 16, color: onBackgroundColor.withOpacity(0.8)),
               ),
               const SizedBox(height: 30),
 
               Card(
                 elevation: 8,
-                shadowColor: Colors.black38,
+                shadowColor: Colors.black26,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
+                color: theme.colorScheme.surface, // ✅ Adaptive Card
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
@@ -142,6 +151,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     key: _formKey,
                     child: Column(
                       children: [
+                        // Name
                         TextFormField(
                           controller: _nameCtrl,
                           textCapitalization: TextCapitalization.words,
@@ -149,12 +159,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           autofillHints: const [AutofillHints.name],
                           decoration: InputDecoration(
                             labelText: l10n.fullNameLabel,
-                            prefixIcon: const Icon(Icons.person_outline),
+                            prefixIcon: Icon(Icons.person_outline, color: theme.colorScheme.onSurfaceVariant),
                           ),
                           validator: (v) => (v == null || v.isEmpty) ? l10n.requiredField : null,
                         ),
                         const SizedBox(height: 16),
 
+                        // Email
                         TextFormField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
@@ -162,28 +173,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           autofillHints: const [AutofillHints.email],
                           decoration: InputDecoration(
                             labelText: l10n.emailLabel,
-                            prefixIcon: const Icon(Icons.email_outlined),
+                            prefixIcon: Icon(Icons.email_outlined, color: theme.colorScheme.onSurfaceVariant),
                           ),
                           validator: (v) => (v != null && v.contains('@')) ? null : l10n.invalidEmail,
                         ),
                         const SizedBox(height: 16),
 
+                        // Password
                         TextFormField(
                           controller: _passCtrl,
-                          obscureText: !_isPasswordVisible, // ✨ UPDATED
+                          obscureText: !_isPasswordVisible,
                           textInputAction: TextInputAction.done,
                           autofillHints: const [AutofillHints.newPassword],
                           onChanged: _updatePasswordStrength,
                           decoration: InputDecoration(
                             labelText: l10n.passwordLabel,
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            // ✨ UPDATED: Interactive Toggle Icon
+                            prefixIcon: Icon(Icons.lock_outline, color: theme.colorScheme.onSurfaceVariant),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _isPasswordVisible 
                                   ? Icons.visibility_outlined 
                                   : Icons.visibility_off_outlined,
-                                color: Colors.grey,
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                               onPressed: () {
                                 setState(() {
@@ -201,7 +212,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
                             child: LinearProgressIndicator(
                               value: _passwordStrength,
-                              backgroundColor: Colors.grey[200],
+                              backgroundColor: theme.colorScheme.surfaceContainerHighest,
                               color: _strengthColor,
                               minHeight: 4,
                               borderRadius: BorderRadius.circular(2),
@@ -210,13 +221,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                         const SizedBox(height: 16),
 
+                        // Currency Dropdown
                         _isLoadingCurrencies 
-                          ? const LinearProgressIndicator()
+                          ? LinearProgressIndicator(color: theme.colorScheme.primary)
                           : DropdownButtonFormField<String>(
                               value: _selectedCurrency,
+                              dropdownColor: theme.colorScheme.surfaceContainerHigh, // Adaptive Dropdown Menu
                               decoration: InputDecoration(
                                 labelText: l10n.currencyLabel,
-                                prefixIcon: const Icon(Icons.currency_exchange),
+                                prefixIcon: Icon(Icons.currency_exchange, color: theme.colorScheme.onSurfaceVariant),
                               ),
                               items: _currencyList.map((c) {
                                 return DropdownMenuItem<String>(
@@ -228,13 +241,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                         const SizedBox(height: 30),
 
+                        // Submit Button
                         SizedBox(
                           width: double.infinity,
                           child: _isSubmitting
-                              ? const Center(child: CircularProgressIndicator())
+                              ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
                               : ElevatedButton(
                                   onPressed: _submit,
                                   style: ElevatedButton.styleFrom(
+                                    backgroundColor: theme.colorScheme.primary,
+                                    foregroundColor: theme.colorScheme.onPrimary,
                                     padding: const EdgeInsets.symmetric(vertical: 18),
                                   ),
                                   child: Text(l10n.getStartedBtn),

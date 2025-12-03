@@ -18,19 +18,19 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
   bool _isLoading = true;
   String? _errorMessage; 
   
-  // ✅ 1. MASTER LIST (Source of Truth for the selected Month)
+  // 1. MASTER LIST (Source of Truth)
   List<Map<String, dynamic>> _masterLogs = [];
   
-  // ✅ 2. DISPLAY LIST (Filtered subset shown in UI)
+  // 2. DISPLAY LIST (Filtered)
   List<Map<String, dynamic>> _displayLogs = [];
   
   // Date State
   DateTime _currentMonth = DateTime.now();
 
-  // Filter State (Updated to Lists for Multi-Select)
+  // Filter State
   String? _filterType; 
-  List<String> _filterCategoryIds = []; // ✅ Multi-select
-  List<String> _filterAccountIds = [];  // ✅ Multi-select
+  List<String> _filterCategoryIds = [];
+  List<String> _filterAccountIds = [];
   
   final TextEditingController _tagController = TextEditingController();
 
@@ -42,7 +42,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
   void initState() {
     super.initState();
     _loadFilterData();
-    _fetchLogsForMonth(); // Initial Fetch
+    _fetchLogsForMonth();
   }
 
   @override
@@ -69,7 +69,6 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
     }
   }
 
-  // ✅ FETCH FROM API (Only runs when Month changes or Refresh)
   Future<void> _fetchLogsForMonth() async {
     setState(() {
       _isLoading = true;
@@ -78,13 +77,12 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
 
     try {
       final logs = await _financeService.getLogsByMonth(_currentMonth);
-      
       if (mounted) {
         setState(() {
-          _masterLogs = logs; // Save to Master
+          _masterLogs = logs;
           _isLoading = false;
         });
-        _applyLocalFilters(); // Run filter logic immediately
+        _applyLocalFilters(); 
       }
     } catch (e) {
       if (mounted) {
@@ -96,38 +94,31 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
     }
   }
 
-  // ✅ FILTER LOGIC (Runs in memory - FAST)
   void _applyLocalFilters() {
     List<Map<String, dynamic>> temp = List.from(_masterLogs);
 
-    // 1. Filter Type
     if (_filterType != null) {
       temp = temp.where((log) => log['type'] == _filterType).toList();
     }
 
-    // 2. Filter Category (Multi-select)
     if (_filterCategoryIds.isNotEmpty) {
       temp = temp.where((log) => _filterCategoryIds.contains(log['category_id'])).toList();
     }
 
-    // 3. Filter Account (Multi-select)
     if (_filterAccountIds.isNotEmpty) {
       temp = temp.where((log) => _filterAccountIds.contains(log['account_id'])).toList();
     }
 
-    // 4. Filter Tags / Text Search
     final query = _tagController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
       temp = temp.where((log) {
         final itemName = (log['item_name'] ?? '').toString().toLowerCase();
         final notes = (log['original_text'] ?? '').toString().toLowerCase();
-        // Check Tags Array (if dynamic list)
         bool tagMatch = false;
         if (log['tags'] != null && log['tags'] is List) {
            final tags = (log['tags'] as List).map((e) => e.toString().toLowerCase()).toList();
            tagMatch = tags.any((t) => t.contains(query));
         }
-        
         return itemName.contains(query) || notes.contains(query) || tagMatch;
       }).toList();
     }
@@ -141,7 +132,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
     setState(() {
       _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + offset, 1);
     });
-    _fetchLogsForMonth(); // Month changed? Fetch new data from DB.
+    _fetchLogsForMonth();
   }
 
   void _onLogTap(Map<String, dynamic> log) async {
@@ -161,9 +152,11 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
 
   void _showFilterModal() {
     if (_categories.isEmpty || _accounts.isEmpty) _loadFilterData();
+    final theme = Theme.of(context);
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: theme.colorScheme.surface, // ✅ Adaptive Background
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
       builder: (ctx) {
@@ -173,7 +166,6 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
             builder: (context, setModalState) {
               return Container(
                 padding: const EdgeInsets.all(24),
-                // Limit height to 85% of screen so users can reach top buttons
                 constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
                 child: SingleChildScrollView(
                   child: Column(
@@ -183,7 +175,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Filter Transactions", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          Text("Filter Transactions", style: theme.textTheme.titleLarge),
                           TextButton(
                             onPressed: () {
                               setModalState(() {
@@ -200,7 +192,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                       const SizedBox(height: 20),
                       
                       // 1. Transaction Type
-                      const Text("Type", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                      Text("Type", style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -216,18 +208,20 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                       // 2. Tag / Search
                       TextFormField(
                         controller: _tagController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: "Search Tag / Item",
                           hintText: "e.g. #vacation or 'Coffee'",
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          prefixIcon: Icon(Icons.tag, size: 20),
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          prefixIcon: const Icon(Icons.tag, size: 20),
                         ),
                       ),
                       const SizedBox(height: 20),
             
                       // 3. Category (Multi-Select)
-                      const Text("Categories", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                      Text("Categories", style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
@@ -246,20 +240,20 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                                 }
                               });
                             },
-                            backgroundColor: Colors.white,
-                            selectedColor: Colors.blue[100],
-                            checkmarkColor: Colors.blue,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey[300]!),
+                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                            selectedColor: theme.colorScheme.primaryContainer,
+                            checkmarkColor: theme.colorScheme.primary,
+                            labelStyle: TextStyle(
+                              color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface
                             ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide.none),
                           );
                         }).toList(),
                       ),
                       const SizedBox(height: 20),
             
                       // 4. Accounts (Multi-Select)
-                      const Text("Accounts", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                      Text("Accounts", style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
@@ -278,13 +272,13 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                                 }
                               });
                             },
-                            backgroundColor: Colors.white,
-                            selectedColor: Colors.purple[100],
-                            checkmarkColor: Colors.purple,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey[300]!),
+                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                            selectedColor: theme.colorScheme.secondaryContainer,
+                            checkmarkColor: theme.colorScheme.secondary,
+                            labelStyle: TextStyle(
+                              color: isSelected ? theme.colorScheme.onSecondaryContainer : theme.colorScheme.onSurface
                             ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide.none),
                           );
                         }).toList(),
                       ),
@@ -298,10 +292,11 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                             _applyLocalFilters();
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          child: const Text("Apply Filters", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          child: const Text("Apply Filters", style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                       const SizedBox(height: 20), 
@@ -317,6 +312,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
   }
 
   Widget _buildTypeChoiceChip(String label, String? value, StateSetter setModalState) {
+    final theme = Theme.of(context);
     final isSelected = _filterType == value;
     return ChoiceChip(
       label: Text(label),
@@ -326,34 +322,35 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
           _filterType = selected ? value : null;
         });
       },
-      selectedColor: Colors.black,
-      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
-      backgroundColor: Colors.white,
+      selectedColor: theme.colorScheme.primary,
+      backgroundColor: theme.colorScheme.surface,
+      labelStyle: TextStyle(color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey[300]!),
+        side: BorderSide(color: isSelected ? Colors.transparent : theme.colorScheme.outlineVariant),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bool hasActiveFilter = _filterType != null || 
                                  _filterCategoryIds.isNotEmpty || 
                                  _filterAccountIds.isNotEmpty || 
                                  _tagController.text.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: theme.scaffoldBackgroundColor, // ✅ Adaptive Background
       appBar: AppBar(
-        title: const Text("Transactions", style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
+        title: Text("Transactions", style: theme.textTheme.titleLarge),
+        backgroundColor: theme.colorScheme.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(hasActiveFilter ? Icons.filter_alt : Icons.filter_alt_outlined),
-            color: hasActiveFilter ? Colors.blue : Colors.black,
+            color: hasActiveFilter ? theme.colorScheme.primary : theme.colorScheme.onSurface,
             onPressed: _showFilterModal,
           ),
         ],
@@ -363,7 +360,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
           children: [
             // MONTH NAVIGATOR
             Container(
-              color: Colors.white,
+              color: theme.colorScheme.surface, // ✅ Adaptive Surface
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: Column(
                 children: [
@@ -376,7 +373,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                       ),
                       Text(
                         DateFormat('MMMM yyyy').format(_currentMonth),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleMedium,
                       ),
                       IconButton(
                         onPressed: () => _changeMonth(1),
@@ -444,6 +441,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                   : _displayLogs.isEmpty 
                     ? _buildEmptyState()
                     : RefreshIndicator(
+                        color: theme.colorScheme.primary,
                         onRefresh: _fetchLogsForMonth,
                         child: ListView.builder(
                           padding: const EdgeInsets.only(top: 8, bottom: 40),
@@ -464,29 +462,34 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
   }
 
   Widget _activeFilterChip(String label, VoidCallback onRemove) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(right: 8),
       child: Chip(
         label: Text(label, style: const TextStyle(fontSize: 11)),
-        deleteIcon: const Icon(Icons.close, size: 14),
+        deleteIcon: Icon(Icons.close, size: 14, color: theme.colorScheme.onSecondaryContainer),
         onDeleted: onRemove,
-        backgroundColor: Colors.blue[50],
+        backgroundColor: theme.colorScheme.secondaryContainer, // ✅ Adaptive Chip Color
+        labelStyle: TextStyle(color: theme.colorScheme.onSecondaryContainer),
         padding: EdgeInsets.zero,
         visualDensity: VisualDensity.compact,
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
 
   Widget _buildEmptyState() {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.filter_list_off, size: 64, color: Colors.grey[300]),
+          Icon(Icons.filter_list_off, size: 64, color: theme.colorScheme.outlineVariant),
           const SizedBox(height: 16),
           Text(
             "No matching transactions",
-            style: TextStyle(color: Colors.grey[500], fontSize: 16),
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 16),
           ),
           const SizedBox(height: 8),
           TextButton(

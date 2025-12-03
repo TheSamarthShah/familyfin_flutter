@@ -11,6 +11,7 @@ class LogDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Get Theme Data
     final theme = Theme.of(context);
     final currencySymbol = UserService().currencySymbol;
     final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
@@ -25,9 +26,9 @@ class LogDetailSheet extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface, // ✅ Adaptive Background
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -57,7 +58,10 @@ class LogDetailSheet extends StatelessWidget {
           Text(
             log['item_name'] ?? "Unknown Item",
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18, color: Colors.grey[700], fontWeight: FontWeight.w500),
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.7), // ✅ Adaptive Grey
+              fontWeight: FontWeight.w500
+            ),
           ),
           const SizedBox(height: 30),
 
@@ -67,24 +71,35 @@ class LogDetailSheet extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3), // ✅ Adaptive Fill
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[200]!),
+                border: Border.all(color: theme.colorScheme.outline.withOpacity(0.1)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: const [
-                      Icon(Icons.mic, size: 16, color: Colors.grey),
-                      SizedBox(width: 8),
-                      Text("Voice Note", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                    children: [
+                      Icon(Icons.mic, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Voice Note", 
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant, 
+                          fontSize: 12, 
+                          fontWeight: FontWeight.bold
+                        )
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
                     "\"${log['original_text']}\"",
-                    style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 16),
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic, 
+                      fontSize: 16, 
+                      color: theme.colorScheme.onSurface // ✅ Adaptive Text
+                    ),
                   ),
                 ],
               ),
@@ -93,22 +108,21 @@ class LogDetailSheet extends StatelessWidget {
           // 3. DETAILS GRID
           Row(
             children: [
-              _buildDetailItem("Category", log['category_name'] ?? "General", Icons.category_outlined),
-              _buildDetailItem("Account", log['account_name'] ?? "Cash", Icons.account_balance_wallet_outlined),
+              _buildDetailItem(theme, "Category", log['category_name'] ?? "General", Icons.category_outlined),
+              _buildDetailItem(theme, "Account", log['account_name'] ?? "Cash", Icons.account_balance_wallet_outlined),
             ],
           ),
           const SizedBox(height: 16),
           
-          // ✅ CHANGED: Combined Date & Time into one Full Width row to prevent cutoff
           Row(
             children: [
-               _buildDetailItem("Date & Time", fullDateString, Icons.calendar_today_outlined, isFullWidth: true),
+              _buildDetailItem(theme, "Date & Time", fullDateString, Icons.calendar_today_outlined, isFullWidth: true),
             ],
           ),
 
           if (log['location_name'] != null) ...[
             const SizedBox(height: 16),
-            _buildDetailItem("Location", log['location_name'], Icons.location_on_outlined, isFullWidth: true),
+            _buildDetailItem(theme, "Location", log['location_name'], Icons.location_on_outlined, isFullWidth: true),
           ],
 
           const SizedBox(height: 30),
@@ -119,21 +133,18 @@ class LogDetailSheet extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () async {
-  // Close the sheet first
-  Navigator.pop(context);
-  
-  // Navigate to Edit Screen
-  await Navigator.push(
-    context, 
-    MaterialPageRoute(builder: (_) => EditLogScreen(log: log)),
-  );
-  
-  // Note: The sheet is already closed, but if the parent screen 
-  // needs to refresh, you might need to handle the result in the parent of the sheet.
-}, 
-                  icon: const Icon(Icons.edit),
-                  label: const Text("Edit"),
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(16)),
+                    Navigator.pop(context); // Close sheet
+                    await Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (_) => EditLogScreen(log: log)),
+                    );
+                  }, 
+                  icon: Icon(Icons.edit, color: theme.colorScheme.primary),
+                  label: Text("Edit", style: TextStyle(color: theme.colorScheme.primary)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                    side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.3)),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -141,14 +152,13 @@ class LogDetailSheet extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () {
                      // Close sheet and return 'true' to indicate deletion/refresh needed
-                     // Note: You need to implement the actual delete logic in the parent or here
                      Navigator.pop(context, true); 
                   }, 
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  label: const Text("Delete", style: TextStyle(color: Colors.red)),
+                  icon: Icon(Icons.delete, color: theme.colorScheme.error),
+                  label: Text("Delete", style: TextStyle(color: theme.colorScheme.error)),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.all(16),
-                    side: const BorderSide(color: Colors.red),
+                    side: BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
                   ),
                 ),
               ),
@@ -160,32 +170,39 @@ class LogDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailItem(String label, String value, IconData icon, {bool isFullWidth = false}) {
+  Widget _buildDetailItem(ThemeData theme, String label, String value, IconData icon, {bool isFullWidth = false}) {
     return Expanded(
       flex: isFullWidth ? 2 : 1,
       child: Container(
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[200]!),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)), // ✅ Adaptive Border
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: Colors.grey[400]),
+            Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant), // ✅ Adaptive Icon
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.bold)),
+                  Text(
+                    label, 
+                    style: TextStyle(
+                      fontSize: 11, 
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8), 
+                      fontWeight: FontWeight.bold
+                    )
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     value, 
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                    // ✅ CHANGED: Removed maxLines: 1 so text can wrap if needed
-                    // maxLines: 1, 
-                    // overflow: TextOverflow.ellipsis
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface // ✅ Adaptive Value Text
+                    ),
                   ),
                 ],
               ),

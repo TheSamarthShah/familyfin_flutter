@@ -3,7 +3,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // 🎨 CONFIGURATION: Change these for your next app
-  static const Color _seedColor = Colors.deepPurple;
+  // Changed from deepPurple to a refreshing teal/blue.
+  static const Color _seedColor = Colors.deepPurple; // Teal Blue
+
+  // New specific status colors
+  //static get expenseColor => const Color(0xFFE53935); // Bright Red/Coral
+  static get expenseColor => Colors.pink; // Bright Red/Coral
+  //static get incomeColor => const Color(0xFF4CAF50); // Standard Green
+  static get incomeColor => Colors.green; // Standard Green
+  static get actionColor => const Color(0xFFFFC107); // Amber/Yellow for required actions
 
   // ---------------------------------------------------------------------------
   // ☀️ LIGHT THEME
@@ -174,8 +182,4 @@ class AppTheme {
       ),
     );
   }
-
-  static get expenseColor => Colors.pink;
-
-  static get incomeColor => Colors.greenAccent;
 }

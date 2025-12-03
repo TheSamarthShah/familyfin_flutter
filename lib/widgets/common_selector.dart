@@ -22,22 +22,38 @@ class SelectorButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Get Theme Data
+    final theme = Theme.of(context);
+    
+    // Determine colors based on state
+    final borderColor = hasError 
+        ? theme.colorScheme.error 
+        : theme.colorScheme.outline.withOpacity(0.2); // Adaptive border
+    
+    final iconColor = hasError 
+        ? theme.colorScheme.error 
+        : theme.colorScheme.onSurfaceVariant; // Adaptive icon grey
+
+    final textColor = isEmpty 
+        ? theme.colorScheme.onSurface.withOpacity(0.4) // Placeholder grey
+        : theme.colorScheme.onSurface; // Main text color
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.colorScheme.surface, // ✅ Adaptive Background (White/Dark Grey)
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: hasError ? Colors.red : Colors.grey[200]!,
+            color: borderColor,
             width: hasError ? 1.5 : 1.0,
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: hasError ? Colors.red : Colors.grey),
+            Icon(icon, color: iconColor),
             const SizedBox(width: 12),
             if (leadingEmoji != null) ...[
               Text(leadingEmoji!, style: const TextStyle(fontSize: 16)),
@@ -46,13 +62,13 @@ class SelectorButton extends StatelessWidget {
             Expanded(
               child: Text(
                 displayValue,
-                style: TextStyle(
+                style: theme.textTheme.bodyLarge?.copyWith(
                   fontSize: 16,
-                  color: isEmpty ? Colors.grey[600] : Colors.black87,
+                  color: textColor,
                 ),
               ),
             ),
-            Icon(Icons.keyboard_arrow_down, color: Colors.grey[400]),
+            Icon(Icons.keyboard_arrow_down, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5)),
           ],
         ),
       ),
@@ -67,31 +83,31 @@ class SelectorSheet {
     required String title,
     required List<T> items,
     required void Function(T) onSelected,
-    required Widget Function(T) itemBuilder, // Defines how each row looks
+    required Widget Function(T) itemBuilder, 
     bool isScrollControlled = false,
   }) {
-    // 1. Close Keyboard
     FocusScope.of(context).unfocus();
+    final theme = Theme.of(context);
 
-    // 2. Show Sheet
     showModalBottomSheet(
       context: context,
+      backgroundColor: theme.colorScheme.surface, // ✅ Adaptive Sheet Background
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: isScrollControlled,
-      builder: (context) {
-        // Use Draggable if list is long (isScrollControlled), else standard
+      builder: (ctx) {
+        // Pass the context (ctx) to _buildContent so it can access the theme
         if (isScrollControlled) {
           return DraggableScrollableSheet(
             initialChildSize: 0.5,
             minChildSize: 0.4,
             maxChildSize: 0.8,
             expand: false,
-            builder: (_, controller) => _buildContent(controller, title, items, itemBuilder),
+            builder: (_, controller) => _buildContent(ctx, controller, title, items, itemBuilder),
           );
         } else {
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
-            child: _buildContent(null, title, items, itemBuilder),
+            child: _buildContent(ctx, null, title, items, itemBuilder),
           );
         }
       },
@@ -99,27 +115,41 @@ class SelectorSheet {
   }
 
   static Widget _buildContent<T>(
+    BuildContext context, // Received context to access Theme
     ScrollController? controller,
     String title,
     List<T> items,
     Widget Function(T) itemBuilder,
   ) {
+    final theme = Theme.of(context);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (controller != null) ...[
           const SizedBox(height: 10),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          // Adaptive Drag Handle
+          Container(
+            width: 40, 
+            height: 4, 
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.2), 
+              borderRadius: BorderRadius.circular(2)
+            )
+          ),
           const SizedBox(height: 20),
         ],
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        Text(
+          title, 
+          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)
+        ),
         const SizedBox(height: 10),
         Expanded(
           child: ListView.separated(
             controller: controller,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(),
+            separatorBuilder: (_, __) => Divider(color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
             itemBuilder: (ctx, i) => itemBuilder(items[i]),
           ),
         ),

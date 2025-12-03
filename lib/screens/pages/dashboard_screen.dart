@@ -71,7 +71,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // ✅ NEW: Handle opening the details sheet
+  // Handle opening the details sheet
   void _onLogTap(Map<String, dynamic> log) async {
     final bool? shouldRefresh = await showModalBottomSheet<bool>(
       context: context,
@@ -90,14 +90,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    
+    // Determine a background color that respects the current theme
+    // Use the theme's background color (scaffoldBackgroundColor)
+    final Color backgroundColor = theme.scaffoldBackgroundColor; 
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      // Use the theme's scaffold background color
+      backgroundColor: backgroundColor, 
       body: ResponsiveCenter(
         padding: EdgeInsets.zero,
         child: RefreshIndicator(
           onRefresh: _fetchData,
-          color: theme.colorScheme.primary,
+          // Use the theme's primary color for the indicator
+          color: theme.colorScheme.primary, 
           child: CustomScrollView(
             slivers: [
               // 1. HERO HEADER
@@ -111,33 +117,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
 
               // 2. ACTION CARD
-              /*if (_unverifiedLogs.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Transform.translate(
-                    offset: const Offset(0, -24),
-                    child: ActionRequiredCard(
-                      count: _unverifiedLogs.length,
-                      onTap: () async {
-                        // Fetch drafts first or pass them if you have them
-                        // For now, let's just pick the first one as an example,
-                        // or navigate to a "Drafts List" screen.
-
-                        // Assuming you want to verify the first draft in the list for now:
-                        if (_unverifiedLogs.isNotEmpty) {
-                          final bool? result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  EditLogScreen(log: _unverifiedLogs.first),
-                            ),
-                          );
-                          if (result == true) _fetchData(); // Refresh dashboard
-                        }
-                      },
-                    ),
-                  ),
-                ),*/
-              // 2. ACTION CARD
               if (_unverifiedLogs.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Transform.translate(
@@ -145,7 +124,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: ActionRequiredCard(
                       count: _unverifiedLogs.length,
                       onTap: () async {
-                        // ✅ Navigate to the Batch Screen
+                        // Navigate to the Batch Screen
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -158,6 +137,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
+              
               // 3. ANALYSIS HEADER
               SliverToBoxAdapter(
                 child: Padding(
@@ -169,7 +149,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         "Cash Flow",
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
+                          // Use a color that looks good on both light/dark backgrounds
+                          color: theme.colorScheme.onSurface, 
                         ),
                       ),
                       Container(
@@ -178,16 +159,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          // Use theme colors for background and border
+                          color: theme.colorScheme.surface, 
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.grey[300]!),
+                          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.5)),
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<TimeRange>(
                             value: _selectedRange,
                             isDense: true,
-                            icon: const Icon(Icons.arrow_drop_down, size: 20),
-                            style: TextStyle(
+                            icon: Icon(Icons.arrow_drop_down, size: 20, color: theme.colorScheme.onSurface),
+                            style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.primary,
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -236,7 +218,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Text(
                         "My Accounts",
                         style: theme.textTheme.titleSmall?.copyWith(
-                          color: Colors.grey[600],
+                          // Use a theme-aware grey (onSurface.withOpacity)
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -274,7 +257,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: SectionHeader(
                   title: l10n.recentActivityTitle, // e.g. "Recent Activity"
                   onSeeAll: () {
-                    // ✅ NAVIGATE TO ALL LOGS
+                    // NAVIGATE TO ALL LOGS
                     Navigator.pushNamed(context, '/all_logs');
                   },
                 ),
@@ -292,12 +275,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Icon(
                           Icons.savings_outlined,
                           size: 48,
-                          color: Colors.grey[300],
+                          // Use a very light grey that is theme-agnostic 
+                          // or onSurface.withOpacity for better dark mode compatibility
+                          color: Colors.grey[300], 
                         ),
                         const SizedBox(height: 10),
                         Text(
                           "No recent activity",
-                          style: TextStyle(color: Colors.grey[500]),
+                          // Use a theme-aware grey
+                          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5)), 
                         ),
                       ],
                     ),
@@ -309,7 +295,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     (context, index) => RecentTransactionTile(
                       log: _recentLogs[index],
                       onTap: () =>
-                          _onLogTap(_recentLogs[index]), // ✅ Pass Callback
+                          _onLogTap(_recentLogs[index]), // Pass Callback
                     ),
                     childCount: _recentLogs.length,
                   ),
