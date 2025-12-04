@@ -36,7 +36,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
-
     try {
       final results = await Future.wait([
         _financeService.getTotalBalance(),
@@ -79,9 +78,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.transparent, // Required for rounded corners
       builder: (context) => LogDetailSheet(log: log),
     );
-
+    print("after log eidt");
     // If returns true, it means a log was deleted/edited -> Refresh UI
     if (shouldRefresh == true) {
+    print("after log eidt refresh");
       _fetchData();
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/app_theme.dart';
 import '../../services/user_service.dart';
+import '../../services/finance_service.dart'; // ✅ 1. Import Finance Service
 
 class LogDetailSheet extends StatelessWidget {
   final Map<String, dynamic> log;
@@ -11,7 +12,6 @@ class LogDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Get Theme Data
     final theme = Theme.of(context);
     final currencySymbol = UserService().currencySymbol;
     final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
@@ -20,21 +20,19 @@ class LogDetailSheet extends StatelessWidget {
     final color = isExpense ? AppTheme.expenseColor : AppTheme.incomeColor;
     final amount = (log['amount'] as num).toDouble();
     final date = DateTime.parse(log['log_date']);
-
-    // Create a full combined date string
     final fullDateString = "${DateFormat('EEE, MMM d, y').format(date)} at ${DateFormat('h:mm a').format(date)}";
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface, // ✅ Adaptive Background
+        color: theme.colorScheme.surface, 
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. HEADER (Icon + Amount)
+          // --- HEADER & DETAILS (Same as before) ---
           Center(
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -59,19 +57,19 @@ class LogDetailSheet extends StatelessWidget {
             log['item_name'] ?? "Unknown Item",
             textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7), // ✅ Adaptive Grey
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
               fontWeight: FontWeight.w500
             ),
           ),
           const SizedBox(height: 30),
 
-          // 2. VOICE NOTE (If available)
+          // --- VOICE NOTE SECTION (Same as before) ---
           if (log['original_text'] != null && log['original_text'].toString().isNotEmpty)
             Container(
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3), // ✅ Adaptive Fill
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: theme.colorScheme.outline.withOpacity(0.1)),
               ),
@@ -82,30 +80,16 @@ class LogDetailSheet extends StatelessWidget {
                     children: [
                       Icon(Icons.mic, size: 16, color: theme.colorScheme.onSurfaceVariant),
                       const SizedBox(width: 8),
-                      Text(
-                        "Voice Note", 
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant, 
-                          fontSize: 12, 
-                          fontWeight: FontWeight.bold
-                        )
-                      ),
+                      Text("Voice Note", style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    "\"${log['original_text']}\"",
-                    style: TextStyle(
-                      fontStyle: FontStyle.italic, 
-                      fontSize: 16, 
-                      color: theme.colorScheme.onSurface // ✅ Adaptive Text
-                    ),
-                  ),
+                  Text("\"${log['original_text']}\"", style: TextStyle(fontStyle: FontStyle.italic, fontSize: 16, color: theme.colorScheme.onSurface)),
                 ],
               ),
             ),
 
-          // 3. DETAILS GRID
+          // --- DETAILS GRID (Same as before) ---
           Row(
             children: [
               _buildDetailItem(theme, "Category", log['category_name'] ?? "General", Icons.category_outlined),
@@ -113,31 +97,30 @@ class LogDetailSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          
           Row(
             children: [
               _buildDetailItem(theme, "Date & Time", fullDateString, Icons.calendar_today_outlined, isFullWidth: true),
             ],
           ),
-
           if (log['location_name'] != null) ...[
             const SizedBox(height: 16),
             _buildDetailItem(theme, "Location", log['location_name'], Icons.location_on_outlined, isFullWidth: true),
           ],
-
           const SizedBox(height: 30),
           
-          // 4. ACTIONS
+          // --- ACTIONS (✅ UPDATED DELETE LOGIC) ---
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    Navigator.pop(context); // Close sheet
-                    await Navigator.push(
+                    final bool? result = await Navigator.push(
                       context, 
                       MaterialPageRoute(builder: (_) => EditLogScreen(log: log)),
                     );
+                    if (context.mounted) {
+                      Navigator.pop(context, result); 
+                    }
                   }, 
                   icon: Icon(Icons.edit, color: theme.colorScheme.primary),
                   label: Text("Edit", style: TextStyle(color: theme.colorScheme.primary)),
@@ -150,9 +133,46 @@ class LogDetailSheet extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                     // Close sheet and return 'true' to indicate deletion/refresh needed
-                     Navigator.pop(context, true); 
+                  // 2. ✅ Update onPressed to delete from DB
+                  onPressed: () async {
+                    // A. Show Confirmation Dialog
+                    final bool? confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Delete Log?"),
+                        content: const Text("Are you sure you want to delete this transaction? This cannot be undone."),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false), // Cancel
+                            child: const Text("Cancel"),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true), // Confirm
+                            child: Text("Delete", style: TextStyle(color: theme.colorScheme.error)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    // B. If confirmed, call Service and Pop
+                    if (confirm == true) {
+                      try {
+                        // Assuming log has an 'id' field
+                        await FinanceService().deleteLog(log['id']);
+                        
+                        if (context.mounted) {
+                          // Return 'true' so Dashboard knows to refresh
+                          Navigator.pop(context, true); 
+                        }
+                      } catch (e) {
+                        debugPrint("Error deleting log: $e");
+                        if (context.mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(content: Text("Failed to delete log")),
+                           );
+                        }
+                      }
+                    }
                   }, 
                   icon: Icon(Icons.delete, color: theme.colorScheme.error),
                   label: Text("Delete", style: TextStyle(color: theme.colorScheme.error)),
@@ -177,33 +197,20 @@ class LogDetailSheet extends StatelessWidget {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)), // ✅ Adaptive Border
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant), // ✅ Adaptive Icon
+            Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label, 
-                    style: TextStyle(
-                      fontSize: 11, 
-                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8), 
-                      fontWeight: FontWeight.bold
-                    )
-                  ),
+                  Text(label, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8), fontWeight: FontWeight.bold)),
                   const SizedBox(height: 2),
-                  Text(
-                    value, 
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface // ✅ Adaptive Value Text
-                    ),
-                  ),
+                  Text(value, style: TextStyle(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
                 ],
               ),
             ),
