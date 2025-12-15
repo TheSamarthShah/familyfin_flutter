@@ -33,7 +33,9 @@ create table public.families (
 create table public.currencies (
   code text primary key check (length(code) = 3),
   name text not null,
-  symbol text
+  symbol text,
+  rate_to_usd decimal(20, 10),     -- e.g., 83.50 (How much of this currency = 1 USD)
+  last_updated timestamp with time zone default now()
 );
 
 create table public.profiles (
@@ -497,3 +499,25 @@ from public.logs l
 left join public.categories c on l.category_id = c.id
 left join public.accounts a on l.account_id = a.id
 where l.status = 'draft';
+
+-- 1. Enable necessary extensions
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- 2. Schedule the job (Runs every day at Midnight UTC)
+select cron.schedule(
+  'update-exchange-rates-daily', -- Name of the job
+  '0 0 * * *',                   -- Cron timing (00:00 daily)
+  $$
+  select
+    net.http_post(
+      -- REPLACE 'sdjfhjsfdjsf' below with your actual project ID
+      url:='https://sdjfhjsfdjsf.supabase.co/functions/v1/exchange_rate_update',
+      -- REPLACE 'YOUR_SERVICE_ROLE_KEY' below. 
+      -- We use Service Role because the function might need admin rights
+      headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwemZtYnRmYXFucGV3enRibG9sIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTk4NDI0MSwiZXhwIjoyMDc3NTYwMjQxfQ.Q0wppimM6AHY6DOyXptlaCnWwscniTWr3SRsQWZYk2s"}'::jsonb,
+      
+      body:='{}'::jsonb
+    ) as request_id;
+  $$
+);

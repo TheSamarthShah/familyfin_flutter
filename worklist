@@ -1,0 +1,11 @@
+category management: If used category is deleted then mark it as deleted so that it can stay as a fk for old logs.
+
+Account management: Make a log for initial balance when account is added. When clicked on account on dashboard then show all transactions related that account.
+
+Remove the location for now.
+
+Remove voice note from the manual entry and readonly in the edit.
+
+self transfer option
+
+credit card management and look for other account types too.
