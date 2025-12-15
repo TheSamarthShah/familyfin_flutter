@@ -37,11 +37,19 @@ class _EditLogScreenState extends State<EditLogScreen> {
   late TextEditingController _tagsController;
 
   DateTime _selectedDate = DateTime.now();
+  
+  // Category
   String? _selectedCategoryId;
   String _selectedCategoryName = "Select Category";
   String _selectedCategoryIcon = "📁";
+  
+  // Account (From)
   String? _selectedAccountId;
   String _selectedAccountName = "Select Account";
+
+  // Account (To) - ✅ NEW for Transfer
+  String? _selectedTargetAccountId;
+  String _selectedTargetAccountName = "Select Account";
 
   // --- DATA ---
   List<Map<String, dynamic>> _allCategories = [];
@@ -79,7 +87,7 @@ class _EditLogScreenState extends State<EditLogScreen> {
         _allCategories = results[0];
         _accounts = results[1];
         _currencies = results[2];
-        if (_accounts.isNotEmpty) _selectAccount(_accounts.first);
+        if (_accounts.isNotEmpty) _selectAccount(_accounts.first, isTarget: false);
       });
 
       if (widget.log != null) {
@@ -158,12 +166,23 @@ class _EditLogScreenState extends State<EditLogScreen> {
       );
       if (cat.isNotEmpty) _selectCategory(cat);
     }
+    
+    // Populate Source Account
     if (log['account_id'] != null) {
       final acc = _accounts.firstWhere(
         (e) => e['id'] == log['account_id'],
         orElse: () => {},
       );
-      if (acc.isNotEmpty) _selectAccount(acc);
+      if (acc.isNotEmpty) _selectAccount(acc, isTarget: false);
+    }
+
+    // ✅ Populate Target Account (For Transfer)
+    if (log['target_account_id'] != null) {
+       final acc = _accounts.firstWhere(
+        (e) => e['id'] == log['target_account_id'],
+        orElse: () => {},
+      );
+      if (acc.isNotEmpty) _selectAccount(acc, isTarget: true);
     }
   }
 
@@ -175,10 +194,15 @@ class _EditLogScreenState extends State<EditLogScreen> {
     });
   }
 
-  void _selectAccount(Map<String, dynamic> acc) {
+  void _selectAccount(Map<String, dynamic> acc, {required bool isTarget}) {
     setState(() {
-      _selectedAccountId = acc['id'];
-      _selectedAccountName = acc['name'];
+      if (isTarget) {
+        _selectedTargetAccountId = acc['id'];
+        _selectedTargetAccountName = acc['name'];
+      } else {
+        _selectedAccountId = acc['id'];
+        _selectedAccountName = acc['name'];
+      }
     });
   }
 
@@ -210,12 +234,30 @@ class _EditLogScreenState extends State<EditLogScreen> {
   Future<void> _saveLog() async {
     setState(() => _showValidationErrors = true);
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCategoryId == null || _selectedAccountId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
-      );
+    
+    // Validation
+    if (_selectedAccountId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select an account")));
       return;
     }
+
+    // Specific validation based on type
+    if (_type == 'transfer') {
+      if (_selectedTargetAccountId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a target account")));
+        return;
+      }
+      if (_selectedAccountId == _selectedTargetAccountId) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Source and Target accounts cannot be the same")));
+        return;
+      }
+    } else {
+      if (_selectedCategoryId == null) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a category")));
+         return;
+      }
+    }
+
     setState(() => _isLoading = true);
 
     double finalBaseAmount;
@@ -238,14 +280,21 @@ class _EditLogScreenState extends State<EditLogScreen> {
         .where((e) => e.isNotEmpty)
         .toList();
 
+    // Default item name for transfer if empty
+    String itemName = _nameController.text;
+    if (_type == 'transfer' && itemName.isEmpty) {
+        itemName = "Transfer";
+    }
+
     final success = await _financeService.upsertLog(
       logId: widget.log?['id'],
       amount: finalBaseAmount,
       type: _type,
-      categoryId: _selectedCategoryId!,
+      categoryId: _type == 'transfer' ? null : _selectedCategoryId!, // Null for transfer
       accountId: _selectedAccountId!,
+      targetAccountId: _type == 'transfer' ? _selectedTargetAccountId : null, // ✅ Pass Target
       date: _selectedDate,
-      itemName: _nameController.text,
+      itemName: itemName,
       note: _noteController.text,
       foreignAmount: finalForeignAmount,
       foreignCurrency: finalForeignCode,
@@ -263,11 +312,15 @@ class _EditLogScreenState extends State<EditLogScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // 1. Get Theme Data
     final theme = Theme.of(context);
-    final isExpense = _type == 'expense';
-    final themeColor = isExpense ? AppTheme.expenseColor : AppTheme.incomeColor;
+    final isTransfer = _type == 'transfer';
     final isForeign = _selectedCurrency != _userBaseCurrencyCode;
+    
+    // Determine color
+    Color themeColor;
+    if (_type == 'expense') themeColor = AppTheme.expenseColor;
+    else if (_type == 'income') themeColor = AppTheme.incomeColor;
+    else themeColor = Colors.blue; // Transfer color
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -292,7 +345,7 @@ class _EditLogScreenState extends State<EditLogScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 2. TYPE TABS (Adaptive Color)
+              // 2. TYPE TABS (Added Transfer)
               Container(
                 margin: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -300,13 +353,14 @@ class _EditLogScreenState extends State<EditLogScreen> {
                 ),
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest, 
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
                     _buildTypeTab("Expense", 'expense', AppTheme.expenseColor),
                     _buildTypeTab("Income", 'income', AppTheme.incomeColor),
+                    _buildTypeTab("Transfer", 'transfer', Colors.blue), // ✅ New Tab
                   ],
                 ),
               ),
@@ -405,7 +459,7 @@ class _EditLogScreenState extends State<EditLogScreen> {
                 ),
               ),
 
-              // 4. FOREIGN CONVERTER (Modern "Math Equation" Style)
+              // 4. FOREIGN CONVERTER
               if (isForeign) _buildForeignConverter(theme),
 
               const SizedBox(height: 30),
@@ -426,37 +480,73 @@ class _EditLogScreenState extends State<EditLogScreen> {
                   children: [
                     TextFormField(
                       controller: _nameController,
-                      decoration: _inputDeco("Description", Icons.edit),
+                      decoration: _inputDeco(
+                        isTransfer ? "Description (Optional)" : "Description", 
+                        Icons.edit
+                      ),
                       validator: (val) =>
-                          val == null || val.isEmpty ? "Required" : null,
+                          // Description is optional for transfer
+                          !isTransfer && (val == null || val.isEmpty) ? "Required" : null,
                     ),
                     const SizedBox(height: 16),
 
-                    SelectorButton(
-                      label: "Category",
-                      icon: Icons.category_outlined,
-                      displayValue: _selectedCategoryId == null
-                          ? "Select Category"
-                          : _selectedCategoryName,
-                      leadingEmoji: _selectedCategoryId == null
-                          ? null
-                          : _selectedCategoryIcon,
-                      isEmpty: _selectedCategoryId == null,
-                      hasError:
-                          _showValidationErrors && _selectedCategoryId == null,
-                      onTap: _openCategorySheet,
-                    ),
-                    const SizedBox(height: 16),
+                    // ✅ CONDITIONAL: Show Category OR Show Accounts Logic
+                    if (!isTransfer) ...[
+                      // --- NORMAL EXPENSE/INCOME ---
+                      SelectorButton(
+                        label: "Category",
+                        icon: Icons.category_outlined,
+                        displayValue: _selectedCategoryId == null
+                            ? "Select Category"
+                            : _selectedCategoryName,
+                        leadingEmoji: _selectedCategoryId == null
+                            ? null
+                            : _selectedCategoryIcon,
+                        isEmpty: _selectedCategoryId == null,
+                        hasError:
+                            _showValidationErrors && _selectedCategoryId == null,
+                        onTap: _openCategorySheet,
+                      ),
+                      const SizedBox(height: 16),
 
-                    SelectorButton(
-                      label: "Account",
-                      icon: Icons.account_balance_wallet_outlined,
-                      displayValue: _selectedAccountName,
-                      isEmpty: _selectedAccountId == null,
-                      hasError:
-                          _showValidationErrors && _selectedAccountId == null,
-                      onTap: _openAccountSheet,
-                    ),
+                      SelectorButton(
+                        label: "Account",
+                        icon: Icons.account_balance_wallet_outlined,
+                        displayValue: _selectedAccountName,
+                        isEmpty: _selectedAccountId == null,
+                        hasError:
+                            _showValidationErrors && _selectedAccountId == null,
+                        onTap: () => _openAccountSheet(isTarget: false),
+                      ),
+                    ] else ...[
+                      // --- TRANSFER MODE ---
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SelectorButton(
+                              label: "From",
+                              icon: Icons.arrow_upward_rounded,
+                              displayValue: _selectedAccountName,
+                              isEmpty: _selectedAccountId == null,
+                              hasError: _showValidationErrors && _selectedAccountId == null,
+                              onTap: () => _openAccountSheet(isTarget: false),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SelectorButton(
+                              label: "To",
+                              icon: Icons.arrow_downward_rounded,
+                              displayValue: _selectedTargetAccountName,
+                              isEmpty: _selectedTargetAccountId == null,
+                              hasError: _showValidationErrors && _selectedTargetAccountId == null,
+                              onTap: () => _openAccountSheet(isTarget: true),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
                     const SizedBox(height: 16),
 
                     GestureDetector(
@@ -496,14 +586,6 @@ class _EditLogScreenState extends State<EditLogScreen> {
                         ),
                         tilePadding: EdgeInsets.zero,
                         children: [
-                          const SizedBox(height: 10),
-                          TextFormField(
-                            controller: _locationController,
-                            decoration: _inputDeco(
-                              "Location",
-                              Icons.location_on_outlined,
-                            ),
-                          ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _tagsController,
@@ -539,9 +621,9 @@ class _EditLogScreenState extends State<EditLogScreen> {
                                   color: theme.colorScheme.onPrimary,
                                 ),
                               )
-                            : const Text(
-                                "Save Transaction",
-                                style: TextStyle(
+                            : Text(
+                                isTransfer ? "Transfer Funds" : "Save Transaction",
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -561,7 +643,8 @@ class _EditLogScreenState extends State<EditLogScreen> {
 
   // --- NEW: SENSITBLE CONVERTER WIDGET ---
   Widget _buildForeignConverter(ThemeData theme) {
-    final containerColor = theme.colorScheme.surfaceContainerHighest.withOpacity(0.5);
+    final containerColor = theme.colorScheme.surfaceContainerHighest
+        .withOpacity(0.5);
     final iconColor = theme.colorScheme.onSurfaceVariant;
 
     return Padding(
@@ -670,9 +753,12 @@ class _EditLogScreenState extends State<EditLogScreen> {
           child: Center(
             child: TextFormField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters:
-                  isTotal ? [ThousandsSeparatorInputFormatter()] : [],
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: isTotal
+                  ? [ThousandsSeparatorInputFormatter()]
+                  : [],
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
@@ -706,9 +792,10 @@ class _EditLogScreenState extends State<EditLogScreen> {
       child: GestureDetector(
         onTap: () => setState(() {
           _type = value;
-          _selectedCategoryId = null;
-          _selectedCategoryName = "Select Category";
-          _selectedCategoryIcon = "📁";
+          // Reset logic when switching types if needed
+          if (_type == 'transfer') {
+              _selectedCategoryId = null; // Clear category
+          }
         }),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -730,7 +817,9 @@ class _EditLogScreenState extends State<EditLogScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: isSelected ? activeColor : theme.colorScheme.onSurfaceVariant,
+              color: isSelected
+                  ? activeColor
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -768,6 +857,9 @@ class _EditLogScreenState extends State<EditLogScreen> {
   void _openCategorySheet() {
     FocusScope.of(context).unfocus();
     final theme = Theme.of(context);
+    // Usually categories are expense or income specific, 
+    // but sometimes "Income" categories are used for transfers if you have specific ones.
+    // For now, we only show this sheet if NOT transfer.
     final filtered = _allCategories.where((c) => c['type'] == _type).toList();
 
     SelectorSheet.show<Map<String, dynamic>>(
@@ -805,26 +897,44 @@ class _EditLogScreenState extends State<EditLogScreen> {
     );
   }
 
-  void _openAccountSheet() {
+  // ✅ UPDATED: Handles both Source and Target selection
+  void _openAccountSheet({required bool isTarget}) {
     FocusScope.of(context).unfocus();
     SelectorSheet.show<Map<String, dynamic>>(
       context: context,
-      title: "Select Account",
+      title: isTarget ? "Transfer To..." : "Select Account",
       items: _accounts,
       isScrollControlled: false,
       onSelected: (acc) {},
       itemBuilder: (acc) {
+        // Highlight logic
+        bool isSelected;
+        if (isTarget) {
+            isSelected = _selectedTargetAccountId == acc['id'];
+        } else {
+            isSelected = _selectedAccountId == acc['id'];
+        }
+        
+        // Disable selecting the same account in transfer mode
+        bool isDisabled = false;
+        if (isTarget && acc['id'] == _selectedAccountId) isDisabled = true;
+        if (!isTarget && _type == 'transfer' && acc['id'] == _selectedTargetAccountId) isDisabled = true;
+
         return ListTile(
           leading: const Icon(Icons.account_balance_wallet),
           title: Text(
             acc['name'],
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDisabled ? Colors.grey : null
+            ),
           ),
-          trailing: _selectedAccountId == acc['id']
+          enabled: !isDisabled,
+          trailing: isSelected
               ? const Icon(Icons.check_circle)
               : null,
-          onTap: () {
-            _selectAccount(acc);
+          onTap: isDisabled ? null : () {
+            _selectAccount(acc, isTarget: isTarget);
             Navigator.pop(context);
           },
         );

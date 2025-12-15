@@ -29,8 +29,8 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
 
   // Filter State
   String? _filterType; 
-  List<String> _filterCategoryIds = [];
-  List<String> _filterAccountIds = [];
+  final List<String> _filterCategoryIds = [];
+  final List<String> _filterAccountIds = [];
   
   final TextEditingController _tagController = TextEditingController();
 

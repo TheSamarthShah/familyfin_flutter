@@ -459,14 +459,17 @@ select
   -- JOINED IDs (Crucial for Edit Screen Dropdowns)
   l.category_id,
   l.account_id,
+  l.target_account_id,
 
   -- JOINED Display Data
   c.name as category_name,
   c.icon_emoji,
-  a.name as account_name
+  a.name as account_name,
+  ta.name as target_account_name
 from public.logs l
 left join public.categories c on l.category_id = c.id
 left join public.accounts a on l.account_id = a.id
+left join accounts ta on l.target_account_id = ta.id
 where l.status = 'confirmed';
 
 -- 3. RECREATE DRAFT LOGS VIEW
@@ -489,15 +492,18 @@ select
 
   -- JOINED IDs
   l.category_id,
-  l.account_id,
+  l.account_id, 
+  l.target_account_id,
 
   -- JOINED Display Data
   c.name as category_name,
   c.icon_emoji,
-  a.name as account_name
+  a.name as account_name,
+  ta.name as target_account_name
 from public.logs l
 left join public.categories c on l.category_id = c.id
 left join public.accounts a on l.account_id = a.id
+left join accounts ta on l.target_account_id = ta.id
 where l.status = 'draft';
 
 -- 1. Enable necessary extensions

@@ -178,13 +178,13 @@ class FinanceService {
   Future<bool> upsertLog({
     String? logId,
     required double amount,
-    required String type,
-    required String categoryId,
+    required String type, // 'expense', 'income', or 'transfer'
+    String? categoryId,   // Nullable for transfers
     required String accountId,
+    String? targetAccountId,
     required DateTime date,
     String? itemName,
     String? note,
-    // NEW OPTIONAL FIELDS
     double? foreignAmount,
     String? foreignCurrency,
     String? locationName,
@@ -198,11 +198,11 @@ class FinanceService {
         'type': type,
         'category_id': categoryId,
         'account_id': accountId,
+        'target_account_id': targetAccountId,
         'log_date': date.toIso8601String(),
         'item_name': itemName,
         'original_text': note,
         'status': 'confirmed',
-        // NEW COLUMNS
         'foreign_amount': foreignAmount,
         'foreign_currency_code': foreignCurrency,
         'location_name': locationName,
@@ -220,7 +220,6 @@ class FinanceService {
       return false;
     }
   }
-
   /// 10. Confirm Log (Quick Verify)
   Future<bool> confirmLog(String logId) async {
     try {

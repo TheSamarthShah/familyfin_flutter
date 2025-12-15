@@ -412,8 +412,9 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-// --- RECENT LOG TILE ---
+// --- RECENT LOG TILE (UPDATED) ---
 class RecentTransactionTile extends StatelessWidget {
+  
   final Map<String, dynamic> log;
   final VoidCallback onTap;
 
@@ -431,9 +432,32 @@ class RecentTransactionTile extends StatelessWidget {
       decimalDigits: 2
     );
     
-    final bool isExpense = log['type'] == 'expense';
-    final color = isExpense ? AppTheme.expenseColor : AppTheme.incomeColor;
-    final prefix = isExpense ? "-" : "+";
+    // --- UPDATED LOGIC FOR TRANSFER ---
+    final String type = log['type'] ?? 'expense';
+    final bool isTransfer = type == 'transfer';
+    final bool isExpense = type == 'expense';
+
+    Color color;
+    String prefix;
+    String emoji;
+
+    if (isTransfer) {
+      color = Colors.blue;
+      prefix = ""; // Transfers are neutral
+      emoji = "💸"; 
+    } else if (isExpense) {
+      color = AppTheme.expenseColor;
+      prefix = "-";
+      emoji = log['icon_emoji'] ?? "📄";
+    } else {
+      color = AppTheme.incomeColor;
+      prefix = "+";
+      emoji = log['icon_emoji'] ?? "💰";
+    }
+    
+    // Use log_date preferably, fallback to created_at
+    final dateStr = log['log_date'] ?? log['created_at'];
+    final date = dateStr != null ? DateTime.parse(dateStr) : DateTime.now();
 
     // 1. Use Padding for the outer spacing (margin)
     return Padding(
@@ -452,14 +476,14 @@ class RecentTransactionTile extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: CircleAvatar(
             backgroundColor: color.withOpacity(0.1),
-            child: Text(log['icon_emoji'] ?? "📄", style: const TextStyle(fontSize: 20)),
+            child: Text(emoji, style: const TextStyle(fontSize: 20)),
           ),
           title: Text(
-            log['item_name'] ?? "Unknown", 
+            log['item_name'] ?? (isTransfer ? "Transfer" : "Unknown"), 
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
           ), 
           subtitle: Text(
-            DateFormat('MMM d').format(DateTime.parse(log['created_at'])),
+            DateFormat('MMM d').format(date),
             style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), 
           ),
           trailing: Text(

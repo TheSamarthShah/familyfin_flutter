@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/app_theme.dart';
 import '../../services/user_service.dart';
-import '../../services/finance_service.dart'; // ✅ 1. Import Finance Service
+import '../../services/finance_service.dart';
 
 class LogDetailSheet extends StatelessWidget {
   final Map<String, dynamic> log;
@@ -16,8 +16,30 @@ class LogDetailSheet extends StatelessWidget {
     final currencySymbol = UserService().currencySymbol;
     final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
     
-    final bool isExpense = log['type'] == 'expense';
-    final color = isExpense ? AppTheme.expenseColor : AppTheme.incomeColor;
+    // --- DETERMINE TYPE ---
+    final String type = log['type'] ?? 'expense';
+    final bool isTransfer = type == 'transfer';
+    final bool isExpense = type == 'expense';
+
+    // --- DETERMINE COLORS & ICONS ---
+    Color color;
+    String emoji;
+    String sign;
+
+    if (isTransfer) {
+      color = Colors.blue;
+      emoji = "💸"; // Transfer Symbol
+      sign = "";
+    } else if (isExpense) {
+      color = AppTheme.expenseColor;
+      emoji = log['icon_emoji'] ?? "📄";
+      sign = "-";
+    } else {
+      color = AppTheme.incomeColor;
+      emoji = log['icon_emoji'] ?? "💰";
+      sign = "+";
+    }
+
     final amount = (log['amount'] as num).toDouble();
     final date = DateTime.parse(log['log_date']);
     final fullDateString = "${DateFormat('EEE, MMM d, y').format(date)} at ${DateFormat('h:mm a').format(date)}";
@@ -32,7 +54,7 @@ class LogDetailSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // --- HEADER & DETAILS (Same as before) ---
+          // 1. HEADER
           Center(
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -40,12 +62,12 @@ class LogDetailSheet extends StatelessWidget {
                 color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Text(log['icon_emoji'] ?? "📄", style: const TextStyle(fontSize: 40)),
+              child: Text(emoji, style: const TextStyle(fontSize: 40)),
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            "${isExpense ? '-' : '+'}${currencyFormat.format(amount)}",
+            "$sign${currencyFormat.format(amount)}",
             textAlign: TextAlign.center,
             style: theme.textTheme.displayMedium?.copyWith(
               color: color, 
@@ -54,7 +76,7 @@ class LogDetailSheet extends StatelessWidget {
             ),
           ),
           Text(
-            log['item_name'] ?? "Unknown Item",
+            log['item_name'] ?? (isTransfer ? "Transfer" : "Unknown Item"),
             textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -63,7 +85,7 @@ class LogDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 30),
 
-          // --- VOICE NOTE SECTION (Same as before) ---
+          // 2. VOICE NOTE (If available)
           if (log['original_text'] != null && log['original_text'].toString().isNotEmpty)
             Container(
               padding: const EdgeInsets.all(16),
@@ -89,26 +111,40 @@ class LogDetailSheet extends StatelessWidget {
               ),
             ),
 
-          // --- DETAILS GRID (Same as before) ---
-          Row(
-            children: [
-              _buildDetailItem(theme, "Category", log['category_name'] ?? "General", Icons.category_outlined),
-              _buildDetailItem(theme, "Account", log['account_name'] ?? "Cash", Icons.account_balance_wallet_outlined),
-            ],
-          ),
+          // 3. DETAILS GRID (✅ UPDATED FOR TRANSFER)
+          if (isTransfer) 
+            // --- TRANSFER LAYOUT ---
+            Row(
+              children: [
+                _buildDetailItem(theme, "From Account", log['account_name'] ?? "Unknown", Icons.arrow_upward_rounded),
+                _buildDetailItem(theme, "To Account", log['target_account_name'] ?? "Unknown", Icons.arrow_downward_rounded),
+              ],
+            )
+          else 
+            // --- STANDARD LAYOUT ---
+            Row(
+              children: [
+                _buildDetailItem(theme, "Category", log['category_name'] ?? "General", Icons.category_outlined),
+                _buildDetailItem(theme, "Account", log['account_name'] ?? "Cash", Icons.account_balance_wallet_outlined),
+              ],
+            ),
+          
           const SizedBox(height: 16),
+          
           Row(
             children: [
               _buildDetailItem(theme, "Date & Time", fullDateString, Icons.calendar_today_outlined, isFullWidth: true),
             ],
           ),
-          if (log['location_name'] != null) ...[
+
+         /* if (log['location_name'] != null) ...[
             const SizedBox(height: 16),
             _buildDetailItem(theme, "Location", log['location_name'], Icons.location_on_outlined, isFullWidth: true),
-          ],
+          ],*/
+
           const SizedBox(height: 30),
           
-          // --- ACTIONS (✅ UPDATED DELETE LOGIC) ---
+          // 4. ACTIONS
           Row(
             children: [
               Expanded(
@@ -133,44 +169,31 @@ class LogDetailSheet extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: OutlinedButton.icon(
-                  // 2. ✅ Update onPressed to delete from DB
                   onPressed: () async {
-                    // A. Show Confirmation Dialog
                     final bool? confirm = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text("Delete Log?"),
-                        content: const Text("Are you sure you want to delete this transaction? This cannot be undone."),
+                        content: const Text("Are you sure you want to delete this transaction?"),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(context, false), // Cancel
+                            onPressed: () => Navigator.pop(context, false),
                             child: const Text("Cancel"),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.pop(context, true), // Confirm
+                            onPressed: () => Navigator.pop(context, true),
                             child: Text("Delete", style: TextStyle(color: theme.colorScheme.error)),
                           ),
                         ],
                       ),
                     );
 
-                    // B. If confirmed, call Service and Pop
                     if (confirm == true) {
                       try {
-                        // Assuming log has an 'id' field
                         await FinanceService().deleteLog(log['id']);
-                        
-                        if (context.mounted) {
-                          // Return 'true' so Dashboard knows to refresh
-                          Navigator.pop(context, true); 
-                        }
+                        if (context.mounted) Navigator.pop(context, true); 
                       } catch (e) {
-                        debugPrint("Error deleting log: $e");
-                        if (context.mounted) {
-                           ScaffoldMessenger.of(context).showSnackBar(
-                             const SnackBar(content: Text("Failed to delete log")),
-                           );
-                        }
+                         debugPrint("Error deleting log: $e");
                       }
                     }
                   }, 
@@ -208,9 +231,22 @@ class LogDetailSheet extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8), fontWeight: FontWeight.bold)),
+                  Text(
+                    label, 
+                    style: TextStyle(
+                      fontSize: 11, 
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8), 
+                      fontWeight: FontWeight.bold
+                    )
+                  ),
                   const SizedBox(height: 2),
-                  Text(value, style: TextStyle(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
+                  Text(
+                    value, 
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface
+                    ),
+                  ),
                 ],
               ),
             ),
