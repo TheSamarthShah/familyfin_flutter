@@ -15,7 +15,8 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: 'https://zpzfmbtfaqnpewztblol.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwemZtYnRmYXFucGV3enRibG9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5ODQyNDEsImV4cCI6MjA3NzU2MDI0MX0.VPoiOJchcPBXHp2uVcawHI1toPqwUS0RcaoMOTAX-EA',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwemZtYnRmYXFucGV3enRibG9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5ODQyNDEsImV4cCI6MjA3NzU2MDI0MX0.VPoiOJchcPBXHp2uVcawHI1toPqwUS0RcaoMOTAX-EA',
   );
 
   runApp(const MyApp());
@@ -30,8 +31,14 @@ class MyApp extends StatelessWidget {
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       debugShowCheckedModeBanner: false,
 
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: AppTheme.getTheme(
+        type: FoundationAppType.finance,
+        brightness: Brightness.light,
+      ),
+      darkTheme: AppTheme.getTheme(
+        type: FoundationAppType.finance,
+        brightness: Brightness.dark,
+      ),
       themeMode: ThemeMode.system,
 
       locale: const Locale('en'),
@@ -100,9 +107,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
-      body: const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      ),
+      body: const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
   }
 }

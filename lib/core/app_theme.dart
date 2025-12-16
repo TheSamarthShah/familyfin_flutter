@@ -1,182 +1,149 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// 1. DEFINE THE APP TYPES
+enum FoundationAppType { 
+  finance, // Deep Purple (Original)
+  ally     // Slate Blue (New Planner)
+}
+
 class AppTheme {
-  // 🎨 CONFIGURATION: Change these for your next app
-  // Changed from deepPurple to a refreshing teal/blue.
-  static const Color _seedColor = Colors.deepPurple; // Teal Blue
+  // ===========================================================================
+  // 🎨 CONFIGURATION (The Magic Switch)
+  // ===========================================================================
+  
+  // Call this method in your main.dart to get the correct theme
+  static ThemeData getTheme({
+    required FoundationAppType type, 
+    required Brightness brightness
+  }) {
+    // 1. Pick the Seed Color based on the App
+    final seedColor = type == FoundationAppType.finance 
+        ? Colors.deepPurple  // Finance Identity
+        : const Color(0xFF3B82F6); // Ally Identity (Blue)
 
-  // New specific status colors
-  //static get expenseColor => const Color(0xFFE53935); // Bright Red/Coral
-  static get expenseColor => Colors.pink; // Bright Red/Coral
-  //static get incomeColor => const Color(0xFF4CAF50); // Standard Green
-  static get incomeColor => Colors.green; // Standard Green
-  static get actionColor => const Color(0xFFFFC107); // Amber/Yellow for required actions
-
-  // ---------------------------------------------------------------------------
-  // ☀️ LIGHT THEME
-  // ---------------------------------------------------------------------------
-  static ThemeData get light {
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: _seedColor,
-        brightness: Brightness.light,
-      ),
-
-      // ✅ CHANGED: Using Google Fonts (Roboto)
-      textTheme: GoogleFonts.interTextTheme().copyWith(
-        // Use 'Inter' or 'Lato' - excellent for screens
-        bodyMedium: GoogleFonts.inter(
-          fontFeatures: [const FontFeature.tabularFigures()], // ALIGNS NUMBERS!
-          color: Colors.black87,
-        ),
-        titleLarge: GoogleFonts.inter(
-          fontWeight: FontWeight.bold,
-          color: _seedColor, // Brand color for headers
-        ),
-      ),
-
-      // Standardize Input Fields (TextFormFields)
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.grey[50],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _seedColor, width: 2),
-        ),
-        labelStyle: const TextStyle(color: Colors.grey),
-        prefixIconColor: Colors.grey[600],
-      ),
-
-      // Standardize Buttons
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _seedColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-      ),
-
-      // Standardize App Bar
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.black87),
-        titleTextStyle: TextStyle(
-          color: Colors.black87,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
+    return _buildTheme(seedColor, brightness);
   }
 
-  // ---------------------------------------------------------------------------
-  // 🌙 DARK THEME
-  // ---------------------------------------------------------------------------
-  static ThemeData get dark {
-    // 1. Base Colors: Define the "Dark Grey" palette
-    const Color bgDark = Color(0xFF121212); // Standard Material Dark Bg
-    const Color surfaceDark = Color(0xFF1E1E1E); // Slightly lighter for Cards
-    const Color inputDark = Color(0xFF2C2C2C); // Even lighter for Input fields
+  // ===========================================================================
+  // 🌈 SEMANTIC COLORS (Shared Helpers)
+  // ===========================================================================
+  // Use these in your UI code like: AppTheme.expenseColor
+  
+  static const Color expenseColor = Colors.pink;   // Bright Red/Pink
+  static const Color incomeColor = Colors.green;   // Standard Green
+  static const Color actionColor = Color(0xFFFFC107); // Amber (Warnings/Stars)
+  static const Color allyAccent = Color(0xFF0F172A);  // Slate 900 (Strong headers)
+
+  // ===========================================================================
+  // 🏗 CORE THEME BUILDER (Private)
+  // ===========================================================================
+  static ThemeData _buildTheme(Color seedColor, Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+
+    // 1. Define Base Colors
+    // Dark Mode: Custom "Dark Grey" palette (Not pitch black)
+    const Color bgDark = Color(0xFF121212);
+    const Color surfaceDark = Color(0xFF1E1E1E);
+    const Color inputDark = Color(0xFF2C2C2C);
+    
+    // Light Mode: Standard off-white
+    const Color bgLight = Colors.white;
+    const Color surfaceLight = Colors.white;
+    final Color inputLight = Colors.grey[50]!;
 
     final baseColorScheme = ColorScheme.fromSeed(
-      seedColor: _seedColor, // Keeps branding, but M3 auto-adjusts brightness
-      brightness: Brightness.dark,
-      surface: surfaceDark,
-      // Error color in dark mode should be salmon/pink, not bright red
-      error: const Color(0xFFCF6679), 
+      seedColor: seedColor,
+      brightness: brightness,
+      surface: isDark ? surfaceDark : surfaceLight,
+      error: isDark ? const Color(0xFFCF6679) : Colors.red,
     );
 
+    // 2. BUILD THEME DATA
     return ThemeData(
       useMaterial3: true,
       colorScheme: baseColorScheme,
-      scaffoldBackgroundColor: bgDark, // Critical for consistent look
+      scaffoldBackgroundColor: isDark ? bgDark : bgLight,
 
-      // 2. TYPOGRAPHY: Must match Light Mode's quality
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
+      // A. TYPOGRAPHY (Google Fonts Inter)
+      textTheme: GoogleFonts.interTextTheme(
+        isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme
+      ).copyWith(
+        // Body: Readable, Tabular Figures for numbers
         bodyMedium: GoogleFonts.inter(
-          fontFeatures: [const FontFeature.tabularFigures()], // KEEP ALIGNMENT
-          color: Colors.white.withOpacity(0.87), // Standard high-emphasis text
+          fontFeatures: [const FontFeature.tabularFigures()], 
+          color: isDark ? Colors.white.withOpacity(0.87) : Colors.black87,
         ),
+        // Titles: Colored by the Brand (Purple for Finance, Blue for Ally)
         titleLarge: GoogleFonts.inter(
           fontWeight: FontWeight.bold,
-          color: baseColorScheme.primary, // Use the softer, pastel purple
+          color: isDark ? baseColorScheme.primary : seedColor, 
         ),
       ),
 
-      // 3. CARDS: Floating Islands
-      // In dark mode, shadows are less visible, so we rely on color difference
+      // B. CARDS (Floating Islands)
       cardTheme: CardThemeData(
-        color: surfaceDark,
-        elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.5), // Darker, stronger shadow
+        color: isDark ? surfaceDark : surfaceLight,
+        elevation: isDark ? 4 : 2, // Higher elevation in dark mode for visibility
+        shadowColor: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         margin: EdgeInsets.zero,
       ),
 
-      // 4. INPUT FIELDS: "Cutouts" in the surface
+      // C. INPUT FIELDS (Consistent "Cutout" Look)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: inputDark, // Lightest grey to invite interaction
+        fillColor: isDark ? inputDark : inputLight,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         
-        // Idle Border (Subtle)
+        // Idle Border
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey[800]!),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey[800]! : Colors.grey[300]!
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey[800]!),
+          borderSide: BorderSide(
+            color: isDark ? Colors.grey[800]! : Colors.grey[300]!
+          ),
         ),
         
-        // Focused Border (Glow effect)
+        // Focused Border (Brand Color Glow)
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: baseColorScheme.primary, width: 2),
         ),
         
-        labelStyle: TextStyle(color: Colors.grey[400]),
-        prefixIconColor: Colors.grey[500],
+        labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey),
+        prefixIconColor: isDark ? Colors.grey[500] : Colors.grey[600],
       ),
 
-      // 5. BUTTONS: Consistent with Light Mode but adjusted for glare
+      // D. BUTTONS (Pill Shape)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: baseColorScheme.primary, // Pastel Purple
-          foregroundColor: baseColorScheme.onPrimary, // Black or dark text usually
-          elevation: 2,
+          backgroundColor: baseColorScheme.primary,
+          foregroundColor: baseColorScheme.onPrimary,
+          elevation: isDark ? 2 : 0,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
 
-      // 6. APP BAR: Blend with background
+      // E. APP BAR (Clean & Simple)
       appBarTheme: AppBarTheme(
-        backgroundColor: bgDark,
+        backgroundColor: isDark ? bgDark : bgLight,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white : Colors.black87
+        ),
         titleTextStyle: GoogleFonts.inter(
-          color: Colors.white, 
-          fontSize: 20, 
+          color: isDark ? Colors.white : Colors.black87,
+          fontSize: 20,
           fontWeight: FontWeight.bold
         ),
       ),
