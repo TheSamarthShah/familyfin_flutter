@@ -1,7 +1,9 @@
 import 'package:foundation_app/screens/pages/log_detail_screen.dart';
+import 'package:foundation_app/services/master_data_service.dart';
 import 'package:foundation_app/widgets/dashboard_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../widgets/responsive_center.dart';
 import '../../services/finance_service.dart';
 
@@ -14,34 +16,29 @@ class AllLogsScreen extends StatefulWidget {
 
 class _AllLogsScreenState extends State<AllLogsScreen> {
   final FinanceService _financeService = FinanceService();
-  
+
   bool _isLoading = true;
-  String? _errorMessage; 
-  
+  String? _errorMessage;
+
   // 1. MASTER LIST (Source of Truth)
   List<Map<String, dynamic>> _masterLogs = [];
-  
+
   // 2. DISPLAY LIST (Filtered)
   List<Map<String, dynamic>> _displayLogs = [];
-  
+
   // Date State
   DateTime _currentMonth = DateTime.now();
 
   // Filter State
-  String? _filterType; 
+  String? _filterType;
   final List<String> _filterCategoryIds = [];
   final List<String> _filterAccountIds = [];
-  
-  final TextEditingController _tagController = TextEditingController();
 
-  // Filter Data Sources
-  List<Map<String, dynamic>> _categories = [];
-  List<Map<String, dynamic>> _accounts = [];
+  final TextEditingController _tagController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadFilterData();
     _fetchLogsForMonth();
   }
 
@@ -49,24 +46,6 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
   void dispose() {
     _tagController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadFilterData() async {
-    if (_categories.isNotEmpty && _accounts.isNotEmpty) return;
-    try {
-      final results = await Future.wait([
-        _financeService.getCategories(),
-        _financeService.getAccounts(),
-      ]);
-      if (mounted) {
-        setState(() {
-          _categories = results[0];
-          _accounts = results[1];
-        });
-      }
-    } catch (e) {
-      debugPrint("Error loading filters: $e");
-    }
   }
 
   Future<void> _fetchLogsForMonth() async {
@@ -82,7 +61,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
           _masterLogs = logs;
           _isLoading = false;
         });
-        _applyLocalFilters(); 
+        _applyLocalFilters();
       }
     } catch (e) {
       if (mounted) {
@@ -102,11 +81,15 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
     }
 
     if (_filterCategoryIds.isNotEmpty) {
-      temp = temp.where((log) => _filterCategoryIds.contains(log['category_id'])).toList();
+      temp = temp
+          .where((log) => _filterCategoryIds.contains(log['category_id']))
+          .toList();
     }
 
     if (_filterAccountIds.isNotEmpty) {
-      temp = temp.where((log) => _filterAccountIds.contains(log['account_id'])).toList();
+      temp = temp
+          .where((log) => _filterAccountIds.contains(log['account_id']))
+          .toList();
     }
 
     final query = _tagController.text.trim().toLowerCase();
@@ -116,8 +99,10 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
         final notes = (log['original_text'] ?? '').toString().toLowerCase();
         bool tagMatch = false;
         if (log['tags'] != null && log['tags'] is List) {
-           final tags = (log['tags'] as List).map((e) => e.toString().toLowerCase()).toList();
-           tagMatch = tags.any((t) => t.contains(query));
+          final tags = (log['tags'] as List)
+              .map((e) => e.toString().toLowerCase())
+              .toList();
+          tagMatch = tags.any((t) => t.contains(query));
         }
         return itemName.contains(query) || notes.contains(query) || tagMatch;
       }).toList();
@@ -130,7 +115,11 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
 
   void _changeMonth(int offset) {
     setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + offset, 1);
+      _currentMonth = DateTime(
+        _currentMonth.year,
+        _currentMonth.month + offset,
+        1,
+      );
     });
     _fetchLogsForMonth();
   }
@@ -139,34 +128,43 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
     final bool? shouldRefresh = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent, 
+      backgroundColor: Colors.transparent,
       builder: (context) => LogDetailSheet(log: log),
     );
 
-    if (shouldRefresh == true) {
-      _fetchLogsForMonth();
+    if (shouldRefresh == true && mounted) {
+      // ✅ CHANGED: refreshAccounts() -> refreshAll()
+      Provider.of<MasterDataProvider>(context, listen: false).refreshDashboard();
+      _fetchLogsForMonth(); // Also refresh the local list on this screen
     }
   }
 
   // --- FILTER UI ---
 
   void _showFilterModal() {
-    if (_categories.isEmpty || _accounts.isEmpty) _loadFilterData();
     final theme = Theme.of(context);
+    // Use read() to get the current list values without establishing a permanent listen link
+    final masterData = context.read<MasterDataProvider>();
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: theme.colorScheme.surface, // ✅ Adaptive Background
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       isScrollControlled: true,
       builder: (ctx) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: StatefulBuilder(
             builder: (context, setModalState) {
               return Container(
                 padding: const EdgeInsets.all(24),
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                ),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -175,7 +173,10 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("Filter Transactions", style: theme.textTheme.titleLarge),
+                          Text(
+                            "Filter Transactions",
+                            style: theme.textTheme.titleLarge,
+                          ),
                           TextButton(
                             onPressed: () {
                               setModalState(() {
@@ -190,9 +191,14 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      
+
                       // 1. Transaction Type
-                      Text("Type", style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                      Text(
+                        "Type",
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -204,8 +210,8 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                         ],
                       ),
                       const SizedBox(height: 20),
-            
-                      // 2. Tag / Search
+
+                      // 2. Search
                       TextFormField(
                         controller: _tagController,
                         decoration: InputDecoration(
@@ -213,20 +219,27 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                           hintText: "e.g. #vacation or 'Coffee'",
                           filled: true,
                           fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
                           prefixIcon: const Icon(Icons.tag, size: 20),
                         ),
                       ),
                       const SizedBox(height: 20),
-            
+
                       // 3. Category (Multi-Select)
-                      Text("Categories", style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                      Text(
+                        "Categories",
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: _categories.map((c) {
+                        children: masterData.categories.map((c) {
                           final isSelected = _filterCategoryIds.contains(c['id']);
                           return FilterChip(
                             label: Text("${c['icon_emoji'] ?? ''} ${c['name']}"),
@@ -240,25 +253,29 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                                 }
                               });
                             },
-                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
                             selectedColor: theme.colorScheme.primaryContainer,
-                            checkmarkColor: theme.colorScheme.primary,
                             labelStyle: TextStyle(
-                              color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurface
+                              color: isSelected
+                                  ? theme.colorScheme.onPrimaryContainer
+                                  : theme.colorScheme.onSurface,
                             ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide.none),
                           );
                         }).toList(),
                       ),
                       const SizedBox(height: 20),
-            
+
                       // 4. Accounts (Multi-Select)
-                      Text("Accounts", style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                      Text(
+                        "Accounts",
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: _accounts.map((a) {
+                        children: masterData.accounts.map((a) {
                           final isSelected = _filterAccountIds.contains(a['id']);
                           return FilterChip(
                             label: Text(a['name']),
@@ -272,18 +289,17 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                                 }
                               });
                             },
-                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
                             selectedColor: theme.colorScheme.secondaryContainer,
-                            checkmarkColor: theme.colorScheme.secondary,
                             labelStyle: TextStyle(
-                              color: isSelected ? theme.colorScheme.onSecondaryContainer : theme.colorScheme.onSurface
+                              color: isSelected
+                                  ? theme.colorScheme.onSecondaryContainer
+                                  : theme.colorScheme.onSurface,
                             ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide.none),
                           );
                         }).toList(),
                       ),
                       const SizedBox(height: 24),
-            
+
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -296,22 +312,29 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                             foregroundColor: theme.colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          child: const Text("Apply Filters", style: TextStyle(fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            "Apply Filters",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 20), 
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
               );
-            }
+            },
           ),
         );
       },
     );
   }
 
-  Widget _buildTypeChoiceChip(String label, String? value, StateSetter setModalState) {
+  Widget _buildTypeChoiceChip(
+    String label,
+    String? value,
+    StateSetter setModalState,
+  ) {
     final theme = Theme.of(context);
     final isSelected = _filterType == value;
     return ChoiceChip(
@@ -323,11 +346,8 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
         });
       },
       selectedColor: theme.colorScheme.primary,
-      backgroundColor: theme.colorScheme.surface,
-      labelStyle: TextStyle(color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: isSelected ? Colors.transparent : theme.colorScheme.outlineVariant),
+      labelStyle: TextStyle(
+        color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
       ),
     );
   }
@@ -335,13 +355,20 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bool hasActiveFilter = _filterType != null || 
-                                 _filterCategoryIds.isNotEmpty || 
-                                 _filterAccountIds.isNotEmpty || 
-                                 _tagController.text.isNotEmpty;
+    
+    // Listen to master data here so active filter chips update correctly
+    final masterData = context.watch<MasterDataProvider>();
+    final allCategories = masterData.categories;
+    final allAccounts = masterData.accounts;
+
+    final bool hasActiveFilter =
+        _filterType != null ||
+        _filterCategoryIds.isNotEmpty ||
+        _filterAccountIds.isNotEmpty ||
+        _tagController.text.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor, // ✅ Adaptive Background
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text("Transactions", style: theme.textTheme.titleLarge),
         backgroundColor: theme.colorScheme.surface,
@@ -349,7 +376,9 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(hasActiveFilter ? Icons.filter_alt : Icons.filter_alt_outlined),
+            icon: Icon(
+              hasActiveFilter ? Icons.filter_alt : Icons.filter_alt_outlined,
+            ),
             color: hasActiveFilter ? theme.colorScheme.primary : theme.colorScheme.onSurface,
             onPressed: _showFilterModal,
           ),
@@ -360,7 +389,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
           children: [
             // MONTH NAVIGATOR
             Container(
-              color: theme.colorScheme.surface, // ✅ Adaptive Surface
+              color: theme.colorScheme.surface,
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: Column(
                 children: [
@@ -381,38 +410,45 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                       ),
                     ],
                   ),
-                  if (hasActiveFilter) 
+                  if (hasActiveFilter)
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          if (_filterType != null) 
-                            _activeFilterChip(_filterType!.toUpperCase(), () { setState(()=>_filterType=null); _applyLocalFilters(); }),
-                          
+                          if (_filterType != null)
+                            _activeFilterChip(_filterType!.toUpperCase(), () {
+                              setState(() => _filterType = null);
+                              _applyLocalFilters();
+                            }),
+
                           if (_tagController.text.isNotEmpty)
-                            _activeFilterChip(
-                              "Tag: ${_tagController.text}", 
-                              () { setState(()=>_tagController.clear()); _applyLocalFilters(); }
-                            ),
+                            _activeFilterChip("Tag: ${_tagController.text}", () {
+                              setState(() => _tagController.clear());
+                              _applyLocalFilters();
+                            }),
 
-                          // Render Category Chips
                           ..._filterCategoryIds.map((id) {
-                            final cat = _categories.firstWhere((c) => c['id'] == id, orElse: () => {'name': 'Unknown'});
-                            return _activeFilterChip(
-                              cat['name'], 
-                              () { setState(()=>_filterCategoryIds.remove(id)); _applyLocalFilters(); }
+                            final cat = allCategories.firstWhere(
+                              (c) => c['id'] == id,
+                              orElse: () => {'name': 'Unknown'},
                             );
+                            return _activeFilterChip(cat['name'], () {
+                              setState(() => _filterCategoryIds.remove(id));
+                              _applyLocalFilters();
+                            });
                           }),
 
-                          // Render Account Chips
                           ..._filterAccountIds.map((id) {
-                            final acc = _accounts.firstWhere((a) => a['id'] == id, orElse: () => {'name': 'Unknown'});
-                            return _activeFilterChip(
-                              acc['name'], 
-                              () { setState(()=>_filterAccountIds.remove(id)); _applyLocalFilters(); }
+                            final acc = allAccounts.firstWhere(
+                              (a) => a['id'] == id,
+                              orElse: () => {'name': 'Unknown'},
                             );
+                            return _activeFilterChip(acc['name'], () {
+                              setState(() => _filterAccountIds.remove(id));
+                              _applyLocalFilters();
+                            });
                           }),
-                            
+
                           TextButton(
                             onPressed: () {
                               setState(() {
@@ -422,38 +458,38 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
                                 _tagController.clear();
                               });
                               _applyLocalFilters();
-                            }, 
-                            child: const Text("Clear All", style: TextStyle(fontSize: 12))
-                          )
+                            },
+                            child: const Text("Clear All", style: TextStyle(fontSize: 12)),
+                          ),
                         ],
                       ),
                     ),
                 ],
               ),
             ),
-            
+
             // LIST
             Expanded(
-              child: _isLoading 
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage != null
                   ? Center(child: Text("Error: $_errorMessage"))
-                  : _displayLogs.isEmpty 
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        color: theme.colorScheme.primary,
-                        onRefresh: _fetchLogsForMonth,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.only(top: 8, bottom: 40),
-                          itemCount: _displayLogs.length,
-                          itemBuilder: (context, index) {
-                            return RecentTransactionTile(
-                              log: _displayLogs[index],
-                              onTap: () => _onLogTap(_displayLogs[index]),
-                            );
-                          },
-                        ),
+                  : _displayLogs.isEmpty
+                  ? _buildEmptyState()
+                  : RefreshIndicator(
+                      color: theme.colorScheme.primary,
+                      onRefresh: _fetchLogsForMonth,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(top: 8, bottom: 40),
+                        itemCount: _displayLogs.length,
+                        itemBuilder: (context, index) {
+                          return RecentTransactionTile(
+                            log: _displayLogs[index],
+                            onTap: () => _onLogTap(_displayLogs[index]),
+                          );
+                        },
                       ),
+                    ),
             ),
           ],
         ),
@@ -469,7 +505,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
         label: Text(label, style: const TextStyle(fontSize: 11)),
         deleteIcon: Icon(Icons.close, size: 14, color: theme.colorScheme.onSecondaryContainer),
         onDeleted: onRemove,
-        backgroundColor: theme.colorScheme.secondaryContainer, // ✅ Adaptive Chip Color
+        backgroundColor: theme.colorScheme.secondaryContainer,
         labelStyle: TextStyle(color: theme.colorScheme.onSecondaryContainer),
         padding: EdgeInsets.zero,
         visualDensity: VisualDensity.compact,
@@ -503,7 +539,7 @@ class _AllLogsScreenState extends State<AllLogsScreen> {
               _applyLocalFilters();
             },
             child: const Text("Clear Filters"),
-          )
+          ),
         ],
       ),
     );

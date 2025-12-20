@@ -1,10 +1,12 @@
 import 'package:foundation_app/core/app_theme.dart';
 import 'package:foundation_app/screens/pages/edit_log_screen.dart';
 import 'package:foundation_app/services/finance_service.dart';
+import 'package:foundation_app/services/master_data_service.dart';
 import 'package:foundation_app/services/user_service.dart';
 import 'package:foundation_app/widgets/responsive_center.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 class VerifyBatchScreen extends StatefulWidget {
   const VerifyBatchScreen({super.key});
@@ -40,29 +42,33 @@ class _VerifyBatchScreenState extends State<VerifyBatchScreen> {
 
   Future<void> _onSwipeSave(int index) async {
     final item = _drafts[index];
-    setState(() => _drafts.removeAt(index)); // Optimistic UI update
+    setState(() => _drafts.removeAt(index));
 
+    // ✅ CHANGED: No context arg
     final success = await _financeService.confirmLog(item['id']);
 
     if (!success && mounted) {
-      setState(() => _drafts.insert(index, item)); // Revert on fail
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to save. Try again.")),
-      );
+      setState(() => _drafts.insert(index, item));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to save. Try again.")));
+    } else if (success && mounted) {
+       // ✅ ADDED: Update global state silently
+       context.read<MasterDataProvider>().refreshDashboard();
     }
   }
 
   Future<void> _onSwipeDiscard(int index) async {
     final item = _drafts[index];
-    setState(() => _drafts.removeAt(index)); // Optimistic UI update
+    setState(() => _drafts.removeAt(index)); 
 
+    // ✅ CHANGED: No context arg
     final success = await _financeService.deleteLog(item['id']);
 
     if (!success && mounted) {
-      setState(() => _drafts.insert(index, item)); // Revert on fail
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to delete. Try again.")),
-      );
+      setState(() => _drafts.insert(index, item)); 
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to delete. Try again.")));
+    } else if (success && mounted) {
+       // ✅ ADDED: Update global state silently
+       context.read<MasterDataProvider>().refreshDashboard();
     }
   }
 
@@ -99,18 +105,20 @@ class _VerifyBatchScreenState extends State<VerifyBatchScreen> {
 
     if (confirm == true) {
       setState(() => _isLoading = true);
+      // ✅ CHANGED: No context arg
       await Future.wait(
         _drafts.map((log) => _financeService.confirmLog(log['id'])),
-      ); // Parallel execution
+      ); 
 
       if (mounted) {
         setState(() {
           _drafts.clear();
           _isLoading = false;
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("All Verified! 🎉")));
+        // ✅ ADDED: Update global state
+        context.read<MasterDataProvider>().refreshDashboard();
+        
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("All Verified! 🎉")));
         Navigator.pop(context, true);
       }
     }

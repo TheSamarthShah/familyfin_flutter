@@ -189,13 +189,14 @@ class LogDetailSheet extends StatelessWidget {
                     );
 
                     if (confirm == true) {
-                      try {
-                        await FinanceService().deleteLog(log['id']);
-                        if (context.mounted) Navigator.pop(context, true); 
-                      } catch (e) {
-                         debugPrint("Error deleting log: $e");
+                        try {
+                          // ✅ CHANGED: Removed context arg
+                          await FinanceService().deleteLog(log['id']);
+                          if (context.mounted) Navigator.pop(context, true); 
+                        } catch (e) {
+                           debugPrint("Error deleting log: $e");
+                        }
                       }
-                    }
                   }, 
                   icon: Icon(Icons.delete, color: theme.colorScheme.error),
                   label: Text("Delete", style: TextStyle(color: theme.colorScheme.error)),

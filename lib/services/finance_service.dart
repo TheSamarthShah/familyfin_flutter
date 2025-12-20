@@ -6,7 +6,7 @@ enum TimeRange { week, month, year }
 class FinanceService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// 1. Get Total Balance (Keeps using Table)
+  /// 1. Get Total Balance
   Future<double> getTotalBalance() async {
     try {
       final userId = _supabase.auth.currentUser!.id;
@@ -26,7 +26,7 @@ class FinanceService {
     }
   }
 
-  /// 2. Get Accounts (Keeps using Table)
+  /// 2. Get Accounts
   Future<List<Map<String, dynamic>>> getAccounts() async {
     try {
       final userId = _supabase.auth.currentUser!.id;
@@ -41,7 +41,7 @@ class FinanceService {
     }
   }
 
-  /// 3. Get Stats (✅ Uses 'view_confirmed_logs')
+  /// 3. Get Stats (Uses 'view_confirmed_logs')
   Future<Map<String, double>> getStats(TimeRange range) async {
     try {
       final userId = _supabase.auth.currentUser!.id;
@@ -63,7 +63,6 @@ class FinanceService {
           break;
       }
 
-      // Changed: Use View. No need to filter status='confirmed' anymore.
       final response = await _supabase
           .from('view_confirmed_logs')
           .select('amount, type')
@@ -86,12 +85,10 @@ class FinanceService {
     }
   }
 
-  /// 4. Get Unverified Logs (✅ Uses 'view_draft_logs')
+  /// 4. Get Unverified Logs
   Future<List<Map<String, dynamic>>> getUnverifiedLogs() async {
     try {
       final userId = _supabase.auth.currentUser!.id;
-
-      // Changed: Much simpler query using the View
       final response = await _supabase
           .from('view_draft_logs')
           .select()
@@ -105,12 +102,10 @@ class FinanceService {
     }
   }
 
-  /// 5. Get Recent History (✅ Uses 'view_confirmed_logs')
+  /// 5. Get Recent Logs
   Future<List<Map<String, dynamic>>> getRecentLogs() async {
     try {
       final userId = _supabase.auth.currentUser!.id;
-
-      // Changed: Use View. The view already has 'icon_emoji' flattened.
       final response = await _supabase
           .from('view_confirmed_logs')
           .select()
@@ -118,7 +113,6 @@ class FinanceService {
           .order('log_date', ascending: false)
           .limit(10);
 
-      // No need to map/flatten anymore!
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       debugPrint("Recent Logs Error: $e");
@@ -126,23 +120,8 @@ class FinanceService {
     }
   }
 
-  /// 6. Get All Logs (✅ Uses 'view_confirmed_logs')
-  Future<List<Map<String, dynamic>>> getAllLogs({int limit = 50}) async {
-    try {
-      final response = await _supabase
-          .from('view_confirmed_logs')
-          .select()
-          .order('log_date', ascending: false)
-          .limit(limit);
-
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      debugPrint('Error fetching all logs: $e');
-      return [];
-    }
-  }
-
-  /// 7. Delete Log (Keeps using Table - Writes go to tables)
+  /// 6. Delete Log
+  /// ✅ UPDATED: Removed BuildContext and Provider logic
   Future<bool> deleteLog(String logId) async {
     try {
       final userId = _supabase.auth.currentUser!.id;
@@ -158,28 +137,13 @@ class FinanceService {
     }
   }
 
-  /// 8. Get Categories (Keeps using Table)
-  Future<List<Map<String, dynamic>>> getCategories() async {
-    try {
-      final userId = _supabase.auth.currentUser!.id;
-      final response = await _supabase
-          .from('categories')
-          .select()
-          .or('user_id.eq.$userId,user_id.is.null')
-          .order('name');
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      debugPrint('Error fetching categories: $e');
-      return [];
-    }
-  }
-
-  /// 9. Create or Update Log
+  /// 7. Create or Update Log
+  /// ✅ UPDATED: Removed BuildContext and Provider logic
   Future<bool> upsertLog({
     String? logId,
     required double amount,
-    required String type, // 'expense', 'income', or 'transfer'
-    String? categoryId,   // Nullable for transfers
+    required String type,
+    String? categoryId,
     required String accountId,
     String? targetAccountId,
     required DateTime date,
@@ -220,11 +184,12 @@ class FinanceService {
       return false;
     }
   }
-  /// 10. Confirm Log (Quick Verify)
+
+  /// 8. Confirm Log
+  /// ✅ UPDATED: Removed BuildContext and Provider logic
   Future<bool> confirmLog(String logId) async {
     try {
       final userId = _supabase.auth.currentUser!.id;
-      // Just flip the status. The DB triggers handle the balance math!
       await _supabase
           .from('logs')
           .update({'status': 'confirmed'})
@@ -237,7 +202,23 @@ class FinanceService {
     }
   }
 
-  /// 11. Get Currencies
+  /// 9. Get Categories
+  Future<List<Map<String, dynamic>>> getCategories() async {
+    try {
+      final userId = _supabase.auth.currentUser!.id;
+      final response = await _supabase
+          .from('categories')
+          .select()
+          .or('user_id.eq.$userId,user_id.is.null')
+          .order('name');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching categories: $e');
+      return [];
+    }
+  }
+
+  /// 10. Get Currencies
   Future<List<Map<String, dynamic>>> getCurrencies() async {
     try {
       final response = await _supabase
@@ -248,24 +229,23 @@ class FinanceService {
     } catch (e) {
       return [
         {'code': 'USD', 'symbol': '\$'},
-      ]; // Fallback
+      ];
     }
   }
 
+  /// 11. Get Logs By Month
   Future<List<Map<String, dynamic>>> getLogsByMonth(
     DateTime monthDate, {
     String? categoryId,
     String? accountId,
-    String? type, // 'income' or 'expense'
+    String? type,
   }) async {
     try {
       final userId = _supabase.auth.currentUser!.id;
-      
       final startDate = DateTime(monthDate.year, monthDate.month, 1);
       final nextMonth = DateTime(monthDate.year, monthDate.month + 1, 1);
       final endDate = nextMonth.subtract(const Duration(seconds: 1));
 
-      // 1. Start Building Query
       var query = _supabase
           .from('view_confirmed_logs')
           .select()
@@ -273,20 +253,11 @@ class FinanceService {
           .gte('log_date', startDate.toIso8601String())
           .lte('log_date', endDate.toIso8601String());
 
-      // 2. Apply Optional Filters
-      if (categoryId != null) {
-        query = query.eq('category_id', categoryId);
-      }
-      if (accountId != null) {
-        query = query.eq('account_id', accountId);
-      }
-      if (type != null && type != 'all') {
-        query = query.eq('type', type);
-      }
+      if (categoryId != null) query = query.eq('category_id', categoryId);
+      if (accountId != null) query = query.eq('account_id', accountId);
+      if (type != null && type != 'all') query = query.eq('type', type);
 
-      // 3. Execute
       final response = await query.order('log_date', ascending: false);
-
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       debugPrint('Error fetching monthly logs: $e');

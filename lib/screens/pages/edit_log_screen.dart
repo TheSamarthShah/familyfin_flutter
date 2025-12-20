@@ -1,5 +1,6 @@
 import 'package:foundation_app/core/app_theme.dart';
 import 'package:foundation_app/services/finance_service.dart';
+import 'package:foundation_app/services/master_data_service.dart';
 import 'package:foundation_app/services/user_service.dart';
 import 'package:foundation_app/widgets/common_selector.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:provider/provider.dart';
 
 class EditLogScreen extends StatefulWidget {
   final Map<String, dynamic>? log;
@@ -290,9 +292,9 @@ class _EditLogScreenState extends State<EditLogScreen> {
       logId: widget.log?['id'],
       amount: finalBaseAmount,
       type: _type,
-      categoryId: _type == 'transfer' ? null : _selectedCategoryId!, // Null for transfer
+      categoryId: _type == 'transfer' ? null : _selectedCategoryId!,
       accountId: _selectedAccountId!,
-      targetAccountId: _type == 'transfer' ? _selectedTargetAccountId : null, // ✅ Pass Target
+      targetAccountId: _type == 'transfer' ? _selectedTargetAccountId : null,
       date: _selectedDate,
       itemName: itemName,
       note: _noteController.text,
@@ -303,7 +305,14 @@ class _EditLogScreenState extends State<EditLogScreen> {
     );
 
     setState(() => _isLoading = false);
-    if (success && mounted) Navigator.pop(context, true);
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (success) {
+        // ✅ CHANGED: refreshAccounts() -> refreshAll()
+        context.read<MasterDataProvider>().refreshDashboard();
+        Navigator.pop(context, true);
+      }
+    }
   }
 
   @override
@@ -1012,8 +1021,13 @@ class _EditLogScreenState extends State<EditLogScreen> {
       ),
     );
     if (confirm == true) {
+      // ✅ CHANGED: Removed 'context' arg
       await _financeService.deleteLog(widget.log!['id']);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        // ✅ CHANGED: refreshAccounts() -> refreshAll()
+        context.read<MasterDataProvider>().refreshDashboard();
+        Navigator.pop(context, true);
+      }
     }
   }
 }
