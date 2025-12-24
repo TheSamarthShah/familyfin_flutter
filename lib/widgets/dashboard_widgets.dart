@@ -40,6 +40,7 @@ class BalanceHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ... inside BalanceHero build ...
           Row(
             children: [
               Text(
@@ -50,15 +51,38 @@ class BalanceHero extends StatelessWidget {
                 ),
               ),
               const Spacer(),
+              
+              // Visibility Toggle
               IconButton(
                 icon: Icon(
                   isHidden ? Icons.visibility_off : Icons.visibility, 
                   color: headerIconColor,
+                  size: 20,
                 ),
                 onPressed: onTogglePrivacy,
                 visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(), // Removes default padding
+                padding: const EdgeInsets.all(8),
               ),
-            ],
+              const SizedBox(width: 8),
+
+              // ✅ NEW: Settings Button
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: Icon(Icons.settings, color: headerIconColor, size: 20),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(8),
+                  onPressed: () {
+                     // ✅ UPDATED: Go to main settings menu
+                     Navigator.pushNamed(context, '/settings'); 
+                  },
+                ),
+              ),  ],
           ),
           const SizedBox(height: 8),
           Text(

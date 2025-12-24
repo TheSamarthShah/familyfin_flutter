@@ -103,4 +103,11 @@ class MasterDataProvider extends ChangeNotifier {
     _cashFlow = stats;
     notifyListeners();
   }
+
+  Future<void> refreshCategories() async {
+    // Fetches only categories, leaving other data intact
+    final cats = await _financeService.getCategories();
+    _categories = cats;
+    notifyListeners();
+  }
 }

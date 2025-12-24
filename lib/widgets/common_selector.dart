@@ -78,6 +78,8 @@ class SelectorButton extends StatelessWidget {
 
 // --- HELPER CLASS FOR THE BOTTOM SHEET ---
 class SelectorSheet {
+// ... inside SelectorSheet class ...
+
   static void show<T>({
     required BuildContext context,
     required String title,
@@ -85,29 +87,31 @@ class SelectorSheet {
     required void Function(T) onSelected,
     required Widget Function(T) itemBuilder, 
     bool isScrollControlled = false,
+    VoidCallback? onManage, // <--- NEW PARAMETER
   }) {
     FocusScope.of(context).unfocus();
     final theme = Theme.of(context);
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: theme.colorScheme.surface, // ✅ Adaptive Sheet Background
+      backgroundColor: theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: isScrollControlled,
       builder: (ctx) {
-        // Pass the context (ctx) to _buildContent so it can access the theme
         if (isScrollControlled) {
           return DraggableScrollableSheet(
             initialChildSize: 0.5,
             minChildSize: 0.4,
             maxChildSize: 0.8,
             expand: false,
-            builder: (_, controller) => _buildContent(ctx, controller, title, items, itemBuilder),
+            // Pass onManage here
+            builder: (_, controller) => _buildContent(ctx, controller, title, items, itemBuilder, onManage),
           );
         } else {
+          // Pass onManage here
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
-            child: _buildContent(ctx, null, title, items, itemBuilder),
+            child: _buildContent(ctx, null, title, items, itemBuilder, onManage),
           );
         }
       },
@@ -115,11 +119,12 @@ class SelectorSheet {
   }
 
   static Widget _buildContent<T>(
-    BuildContext context, // Received context to access Theme
+    BuildContext context,
     ScrollController? controller,
     String title,
     List<T> items,
     Widget Function(T) itemBuilder,
+    VoidCallback? onManage, // <--- NEW PARAMETER
   ) {
     final theme = Theme.of(context);
 
@@ -128,30 +133,45 @@ class SelectorSheet {
       children: [
         if (controller != null) ...[
           const SizedBox(height: 10),
-          // Adaptive Drag Handle
           Container(
-            width: 40, 
-            height: 4, 
-            decoration: BoxDecoration(
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.2), 
-              borderRadius: BorderRadius.circular(2)
-            )
+            width: 40, height: 4, 
+            decoration: BoxDecoration(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.2), borderRadius: BorderRadius.circular(2))
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10), // Reduced spacing
         ],
-        Text(
-          title, 
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: ListView.separated(
-            controller: controller,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => Divider(color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
-            itemBuilder: (ctx, i) => itemBuilder(items[i]),
+        
+        // --- NEW HEADER WITH ACTION ---
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              if (onManage != null)
+                TextButton.icon(
+                  onPressed: onManage,
+                  icon: const Icon(Icons.settings, size: 18),
+                  label: const Text("Manage"),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                ),
+            ],
           ),
+        ),
+        const Divider(height: 1),
+        
+        Expanded(
+          child: items.isEmpty 
+          ? Center(child: Text("No items found", style: TextStyle(color: theme.colorScheme.onSurfaceVariant)))
+          : ListView.separated(
+              controller: controller,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => Divider(color: theme.colorScheme.outlineVariant.withOpacity(0.5), height: 1),
+              itemBuilder: (ctx, i) => itemBuilder(items[i]),
+            ),
         ),
       ],
     );

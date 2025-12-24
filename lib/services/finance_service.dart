@@ -264,4 +264,93 @@ class FinanceService {
       return [];
     }
   }
+
+  /// 12. Create or Update Category
+  Future<bool> upsertCategory({
+    String? id,
+    required String name,
+    required String iconEmoji,
+    required String type, // 'income' or 'expense'
+  }) async {
+    try {
+      final userId = _supabase.auth.currentUser!.id;
+      final data = {
+        'name': name,
+        'icon_emoji': iconEmoji,
+        'type': type,
+        'user_id': userId, // Always link to user so it's a custom category
+      };
+
+      if (id != null) {
+        await _supabase.from('categories').update(data).eq('id', id).eq('user_id', userId);
+      } else {
+        await _supabase.from('categories').insert(data);
+      }
+      return true;
+    } catch (e) {
+      debugPrint("Error upserting category: $e");
+      return false;
+    }
+  }
+
+  /// 13. Delete Category
+  Future<bool> deleteCategory(String id) async {
+    try {
+      final userId = _supabase.auth.currentUser!.id;
+      // Only delete if it belongs to the user (security policy usually handles this too)
+      await _supabase.from('categories').delete().eq('id', id).eq('user_id', userId);
+      return true;
+    } catch (e) {
+      debugPrint("Error deleting category: $e");
+      return false;
+    }
+  }
+
+  /// 14. Create or Update Account
+  Future<bool> upsertAccount({
+    String? id,
+    required String name,
+    required String type,      // 'cash', 'bank', 'credit', etc.
+    required bool isCredit,    // true/false
+  }) async {
+    try {
+      final userId = _supabase.auth.currentUser!.id;
+      final data = {
+        'name': name,
+        'type': type,
+        'is_credit': isCredit,
+        'user_id': userId,
+      };
+
+      if (id != null) {
+        await _supabase.from('accounts').update(data).eq('id', id).eq('user_id', userId);
+      } else {
+        // Balance defaults to 0.00 in DB
+        await _supabase.from('accounts').insert(data);
+      }
+      return true;
+    } catch (e) {
+      debugPrint("Error upserting account: $e");
+      return false;
+    }
+  }
+  /// 15. Delete Account
+  Future<bool> deleteAccount(String id) async {
+    try {
+      final userId = _supabase.auth.currentUser!.id;
+      
+      // 1. Check if it is the "Cash" account (Double security)
+      final account = await _supabase.from('accounts').select('name').eq('id', id).single();
+      if (account['name'].toString().toLowerCase() == 'cash') {
+        return false; // Cannot delete Cash
+      }
+
+      // 2. Delete
+      await _supabase.from('accounts').delete().eq('id', id).eq('user_id', userId);
+      return true;
+    } catch (e) {
+      debugPrint("Error deleting account: $e");
+      return false;
+    }
+  }
 }

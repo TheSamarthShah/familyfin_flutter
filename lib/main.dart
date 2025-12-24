@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:foundation_app/l10n/app_localizations.dart';
+import 'package:foundation_app/screens/management/account_list_screen.dart';
+import 'package:foundation_app/screens/management/category_list_screen.dart';
 import 'package:foundation_app/screens/pages/all_logs_screen.dart';
 import 'package:foundation_app/screens/pages/dashboard_screen.dart';
+import 'package:foundation_app/screens/pages/settings_screen.dart';
 import 'package:foundation_app/services/master_data_service.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -71,6 +74,9 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/dashboard': (context) => const DashboardScreen(),
         '/all_logs': (context) => const AllLogsScreen(),
+        '/categories': (context) => const CategoryListScreen(),
+        '/accounts': (context) => const AccountListScreen(),
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }

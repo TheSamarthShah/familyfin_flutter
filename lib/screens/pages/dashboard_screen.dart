@@ -19,7 +19,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   // Local UI state (Visual only)
-  bool _isBalanceHidden = false; 
+  bool _isBalanceHidden = true; 
 
   @override
   Widget build(BuildContext context) {

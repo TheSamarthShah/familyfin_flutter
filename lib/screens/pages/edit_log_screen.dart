@@ -876,7 +876,20 @@ class _EditLogScreenState extends State<EditLogScreen> {
       title: "Select Category",
       items: filtered,
       isScrollControlled: true,
-      onSelected: (cat) {},
+      onManage: () async {
+        // 1. Close the sheet first
+        Navigator.pop(context); 
+        
+        // 2. Go to Category Manager
+        await Navigator.pushNamed(context, '/categories');
+        
+        // 3. Re-open sheet (Optional, or just let user click again)
+        // We usually just let the user come back to the form and click "Category" again.
+      },
+     onSelected: (cat) {
+        _selectCategory(cat);
+        Navigator.pop(context);
+      },
       itemBuilder: (cat) {
         return ListTile(
           leading: Container(
@@ -914,7 +927,15 @@ class _EditLogScreenState extends State<EditLogScreen> {
       title: isTarget ? "Transfer To..." : "Select Account",
       items: _accounts,
       isScrollControlled: false,
-      onSelected: (acc) {},
+      onManage: () async {
+        Navigator.pop(context); // Close sheet
+        await Navigator.pushNamed(context, '/accounts');
+        // No need to refresh here, the manager does it.
+      },
+      onSelected: (acc) {
+        setState(() => _selectedAccountId = acc['id']);
+        Navigator.pop(context);
+      },
       itemBuilder: (acc) {
         // Highlight logic
         bool isSelected;
