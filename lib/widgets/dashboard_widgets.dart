@@ -40,7 +40,6 @@ class BalanceHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ... inside BalanceHero build ...
           Row(
             children: [
               Text(
@@ -66,7 +65,7 @@ class BalanceHero extends StatelessWidget {
               ),
               const SizedBox(width: 8),
 
-              // ✅ NEW: Settings Button
+              // Settings Button
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
@@ -78,11 +77,11 @@ class BalanceHero extends StatelessWidget {
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(8),
                   onPressed: () {
-                     // ✅ UPDATED: Go to main settings menu
                      Navigator.pushNamed(context, '/settings'); 
                   },
                 ),
-              ),  ],
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -111,7 +110,6 @@ class ActionRequiredCard extends StatelessWidget {
     if (count == 0) return const SizedBox.shrink();
     final theme = Theme.of(context);
     
-    // ✅ NEW: Use the custom action color defined in AppTheme
     final Color actionColor = AppTheme.actionColor; 
     final Color actionBgColor = actionColor.withOpacity(0.1);
 
@@ -122,7 +120,6 @@ class ActionRequiredCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            // Use the action color for the shadow
             color: actionColor.withOpacity(0.2),
             blurRadius: 12,
             offset: const Offset(0, 6),
@@ -190,7 +187,6 @@ class MonthlyPulse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // FIX: Compact currency with User Symbol (e.g. $1.2K or ₹1.2L)
     final currencyFormat = NumberFormat.compactCurrency(symbol: UserService().currencySymbol);
 
     return Padding(
@@ -202,7 +198,6 @@ class MonthlyPulse extends StatelessWidget {
               context,
               "Income", 
               currencyFormat.format(income), 
-              // Uses the new incomeColor
               AppTheme.incomeColor,
               Icons.arrow_downward
             ),
@@ -213,7 +208,6 @@ class MonthlyPulse extends StatelessWidget {
               context,
               "Expense", 
               currencyFormat.format(expense), 
-              // Uses the new expenseColor
               AppTheme.expenseColor,
               Icons.arrow_upward
             ),
@@ -275,7 +269,7 @@ class AccountsRail extends StatelessWidget {
   final List<Map<String, dynamic>> accounts;
 
   const AccountsRail({super.key, required this.accounts});
-
+  
   @override
   Widget build(BuildContext context) {
     if (accounts.isEmpty) return const SizedBox.shrink();
@@ -296,6 +290,13 @@ class AccountsRail extends StatelessWidget {
 
   Widget _buildAccountCard(BuildContext context, Map<String, dynamic> account) {
     final currencyFormat = NumberFormat.compactCurrency(symbol: UserService().currencySymbol);
+    
+    // ✅ Formatter for the dialog (Exact figure)
+    final fullCurrencyFormat = NumberFormat.currency(
+      symbol: UserService().currencySymbol, 
+      decimalDigits: 2
+    );
+
     final balance = (account['balance'] as num).toDouble();
     final type = account['type'] ?? 'cash';
     final theme = Theme.of(context);
@@ -304,41 +305,102 @@ class AccountsRail extends StatelessWidget {
     if (type == 'bank') icon = Icons.account_balance;
     if (type == 'credit') icon = Icons.credit_card;
 
-    return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface, 
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(color: theme.shadowColor.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Icon uses the new teal primary color
-          Icon(icon, color: theme.colorScheme.primary),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                account['name'] ?? "Unknown",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), 
-              ),
-              const SizedBox(height: 4),
-              Text(
-                currencyFormat.format(balance),
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold), 
+    return GestureDetector(
+      // ✅ Handle Tap: Show Exact Figure Dialog
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: theme.colorScheme.surface,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 40, color: theme.colorScheme.primary),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  account['name'] ?? "Unknown",
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Current Balance",
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  fullCurrencyFormat.format(balance),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Close"),
               ),
             ],
           ),
-        ],
+        );
+      },
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface, 
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: theme.shadowColor.withOpacity(0.05), 
+              blurRadius: 10, 
+              offset: const Offset(0, 4)
+            )
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(icon, color: theme.colorScheme.primary),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  account['name'] ?? "Unknown",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant
+                  ), 
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  currencyFormat.format(balance),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold
+                  ), 
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -357,10 +419,8 @@ class QuickActions extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Row(
         children: [
-          // Voice Log uses the expense color (Red/Coral)
           _buildBtn(context, Icons.mic, "Voice Log", AppTheme.expenseColor, onVoice),
           const SizedBox(width: 16),
-          // ✅ NEW: Manual Log uses the theme's secondary color 
           _buildBtn(context, Icons.edit, "Manual", Theme.of(context).colorScheme.secondary, onManual),
         ],
       ),
@@ -427,7 +487,6 @@ class SectionHeader extends StatelessWidget {
           ),
           TextButton(
             onPressed: onSeeAll,
-            // TextButton uses the new teal primary color
             child: Text("See All", style: TextStyle(color: theme.colorScheme.primary)), 
           ),
         ],
@@ -436,7 +495,7 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-// --- RECENT LOG TILE (UPDATED) ---
+// --- RECENT LOG TILE ---
 class RecentTransactionTile extends StatelessWidget {
   
   final Map<String, dynamic> log;
@@ -456,7 +515,6 @@ class RecentTransactionTile extends StatelessWidget {
       decimalDigits: 2
     );
     
-    // --- UPDATED LOGIC FOR TRANSFER ---
     final String type = log['type'] ?? 'expense';
     final bool isTransfer = type == 'transfer';
     final bool isExpense = type == 'expense';
@@ -467,7 +525,7 @@ class RecentTransactionTile extends StatelessWidget {
 
     if (isTransfer) {
       color = Colors.blue;
-      prefix = ""; // Transfers are neutral
+      prefix = ""; 
       emoji = "💸"; 
     } else if (isExpense) {
       color = AppTheme.expenseColor;
@@ -479,17 +537,13 @@ class RecentTransactionTile extends StatelessWidget {
       emoji = log['icon_emoji'] ?? "💰";
     }
     
-    // Use log_date preferably, fallback to created_at
     final dateStr = log['log_date'] ?? log['created_at'];
     final date = dateStr != null ? DateTime.parse(dateStr) : DateTime.now();
 
-    // 1. Use Padding for the outer spacing (margin)
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      // 2. Use Material instead of Container for the actual card
       child: Material(
         color: theme.colorScheme.surface,
-        // 3. This is the fix: Clip the content (and the ripple) to the border radius
         clipBehavior: Clip.hardEdge,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),

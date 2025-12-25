@@ -16,19 +16,30 @@ class AddEditAccountSheet extends StatefulWidget {
 class _AddEditAccountSheetState extends State<AddEditAccountSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _emojiCtrl = TextEditingController();
   
+  // Default values matching your DB schema
+  String _selectedType = 'cash'; 
+  bool _isCredit = false;
   bool _isLoading = false;
+
+  // Options matching your Postgres Enum: 
+  // ('cash', 'bank', 'credit', 'wallet', 'investment', 'other')
+  final List<Map<String, dynamic>> _accountTypes = [
+    {'value': 'cash', 'label': 'Cash', 'icon': '💵'},
+    {'value': 'bank', 'label': 'Bank Account', 'icon': '🏦'},
+    {'value': 'credit', 'label': 'Credit Card', 'icon': '💳'},
+    {'value': 'wallet', 'label': 'Digital Wallet', 'icon': '👛'},
+    {'value': 'investment', 'label': 'Investment', 'icon': '📈'},
+    {'value': 'other', 'label': 'Other', 'icon': '📁'},
+  ];
 
   @override
   void initState() {
     super.initState();
     if (widget.account != null) {
       _nameCtrl.text = widget.account!['name'];
-      // Handle case where icon_emoji might not exist in your old DB schema yet
-      _emojiCtrl.text = widget.account!['icon_emoji'] ?? '🏦'; 
-    } else {
-      _emojiCtrl.text = '💳';
+      _selectedType = widget.account!['type'] ?? 'cash';
+      _isCredit = widget.account!['is_credit'] ?? false;
     }
   }
 
@@ -39,13 +50,13 @@ class _AddEditAccountSheetState extends State<AddEditAccountSheet> {
     final success = await FinanceService().upsertAccount(
       id: widget.account?['id'],
       name: _nameCtrl.text.trim(),
-      iconEmoji: _emojiCtrl.text.trim(),
+      type: _selectedType,
+      isCredit: _isCredit,
     );
 
     if (mounted) {
       setState(() => _isLoading = false);
       if (success) {
-        // Refresh the Dashboard (because accounts list lives there)
         context.read<MasterDataProvider>().refreshDashboard();
         Navigator.pop(context, true);
       }
@@ -55,6 +66,12 @@ class _AddEditAccountSheetState extends State<AddEditAccountSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // Find icon for currently selected type
+    final currentIcon = _accountTypes.firstWhere(
+      (t) => t['value'] == _selectedType,
+      orElse: () => _accountTypes.last
+    )['icon'];
 
     return Padding(
       padding: EdgeInsets.only(
@@ -74,46 +91,61 @@ class _AddEditAccountSheetState extends State<AddEditAccountSheet> {
             ),
             const SizedBox(height: 24),
             
-            Row(
-              children: [
-                // Emoji Icon
-                SizedBox(
-                  width: 80,
-                  child: TextFormField(
-                    controller: _emojiCtrl,
-                    textAlign: TextAlign.center,
-                    maxLength: 2,
-                    decoration: const InputDecoration(
-                      labelText: "Icon",
-                      counterText: "",
-                    ),
-                    validator: (v) => v!.isEmpty ? "Req" : null,
-                  ),
+            // --- 1. Name Input ---
+            TextFormField(
+              controller: _nameCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: "Account Name",
+                hintText: "e.g. HDFC Salary",
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(currentIcon, style: const TextStyle(fontSize: 24)),
                 ),
-                const SizedBox(width: 16),
-                
-                // Name
-                Expanded(
-                  child: TextFormField(
-                    controller: _nameCtrl,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: "Account Name",
-                      hintText: "e.g. HDFC Bank",
-                    ),
-                    validator: (v) => v!.isEmpty ? "Required" : null,
+              ),
+              validator: (v) => v!.isEmpty ? "Required" : null,
+            ),
+            const SizedBox(height: 20),
+
+            // --- 2. Type Selector ---
+            DropdownButtonFormField<String>(
+              value: _selectedType,
+              decoration: const InputDecoration(labelText: "Account Type"),
+              items: _accountTypes.map((type) {
+                // ✅ FIX: Explicitly specify DropdownMenuItem<String> and cast value
+                return DropdownMenuItem<String>(
+                  value: type['value'] as String, 
+                  child: Row(
+                    children: [
+                      Text(type['icon']),
+                      const SizedBox(width: 12),
+                      Text(type['label']),
+                    ],
                   ),
-                ),
-              ],
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedType = val;
+                    // Auto-set "is_credit" if user selects Credit Card
+                    if (val == 'credit') _isCredit = true;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // --- 3. Credit Switch ---
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text("Is this a debt/credit account?"),
+              subtitle: const Text("Balances will be treated as liabilities."),
+              value: _isCredit,
+              activeColor: theme.colorScheme.error, // Red for debt
+              onChanged: (val) => setState(() => _isCredit = val),
             ),
             
-            const SizedBox(height: 12),
-            if (widget.account == null)
-              Text(
-                "Tip: New accounts start with a 0 balance. Add a 'Balance Adjustment' log to set the opening balance.",
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-
             const SizedBox(height: 32),
 
             ElevatedButton(

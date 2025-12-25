@@ -8,7 +8,18 @@ import 'add_edit_account_sheet.dart';
 class AccountListScreen extends StatelessWidget {
   const AccountListScreen({super.key});
 
-  static const String _defaultIcon = '🏦';
+  /// Helper to map DB Enum types to Emojis
+  String _getIconForType(String? type) {
+    switch (type) {
+      case 'cash': return '💵';
+      case 'bank': return '🏦';
+      case 'credit': return '💳';
+      case 'wallet': return '👛';
+      case 'investment': return '📈';
+      case 'other': return '📁';
+      default: return '🏦';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +28,6 @@ class AccountListScreen extends StatelessWidget {
     final accounts = provider.accounts;
 
     return Scaffold(
-      // Background handled by AppTheme
       appBar: AppBar(
         title: const Text("Manage Accounts"),
         centerTitle: true,
@@ -39,12 +49,22 @@ class AccountListScreen extends StatelessWidget {
           _buildSectionHeader(context, "My Accounts"),
           
           if (accounts.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Center(child: Text("No accounts found.")),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.account_balance_outlined, size: 48, color: theme.colorScheme.outline),
+                    const SizedBox(height: 12),
+                    Text("No accounts found.", style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
             )
           else
             ...accounts.map((acc) => _buildAccountTile(context, acc)),
+            
+          const SizedBox(height: 40), 
         ],
       ),
     );
@@ -67,11 +87,16 @@ class AccountListScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            "\$${total.toStringAsFixed(2)}", // You can use your currency formatter here
-            style: theme.textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onPrimaryContainer,
+          
+          // FittedBox: If number is HUGE, it shrinks font size instead of cutting off
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              "\$${total.toStringAsFixed(2)}", 
+              style: theme.textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
             ),
           ),
         ],
@@ -97,51 +122,73 @@ class AccountListScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     
-    // LOGIC: Check if it is the "Cash" account
     final isDefaultCash = account['name'].toString().toLowerCase() == 'cash';
-
-    final String displayIcon = (account['icon_emoji'] != null) 
-        ? account['icon_emoji'] 
-        : _defaultIcon;
-
+    final String displayIcon = _getIconForType(account['type']);
     final double balance = (account['balance'] as num?)?.toDouble() ?? 0.0;
+    final bool isCredit = account['is_credit'] ?? false;
 
-    return Container(
+    return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: isCredit 
+            ? BorderSide(color: colorScheme.error.withOpacity(0.5))
+            : BorderSide(color: colorScheme.outlineVariant.withOpacity(0.3)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        
         leading: Container(
           width: 48, height: 48,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: colorScheme.secondaryContainer,
+            color: isCredit 
+                ? colorScheme.errorContainer.withOpacity(0.8) 
+                : colorScheme.secondaryContainer,
             shape: BoxShape.circle,
           ),
           child: Text(displayIcon, style: const TextStyle(fontSize: 22)),
         ),
-        title: Text(
-          account['name'],
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        
+        // ✅ DESIGN FIX: Badge is now in the title row
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                account['name'],
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            if (isCredit) 
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: colorScheme.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6)
+                ),
+                child: Text(
+                  "CREDIT", 
+                  style: TextStyle(fontSize: 10, color: colorScheme.error, fontWeight: FontWeight.bold),
+                ),
+              ),
+          ],
         ),
-        subtitle: Text(
-          "Balance: ${balance.toStringAsFixed(2)}",
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor,
-            fontWeight: FontWeight.bold,
+        
+        // ✅ DESIGN FIX: Subtitle has full width for Balance
+        subtitle: FittedBox(
+          fit: BoxFit.scaleDown, // Shrinks text if it hits the edge
+          alignment: Alignment.centerLeft,
+          child: Text(
+            "Balance: ${balance.toStringAsFixed(2)}",
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
+        
         trailing: isDefaultCash
           ? Tooltip(
               message: "Default Account (Cannot Delete)",
