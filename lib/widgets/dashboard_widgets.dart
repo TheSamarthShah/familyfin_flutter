@@ -30,7 +30,6 @@ class BalanceHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
       decoration: BoxDecoration(
-        // Uses the new teal primary color
         color: theme.colorScheme.primary,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(32),
@@ -60,7 +59,7 @@ class BalanceHero extends StatelessWidget {
                 ),
                 onPressed: onTogglePrivacy,
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(), // Removes default padding
+                constraints: const BoxConstraints(),
                 padding: const EdgeInsets.all(8),
               ),
               const SizedBox(width: 8),
@@ -267,19 +266,50 @@ class MonthlyPulse extends StatelessWidget {
 // --- ZONE D: ACCOUNTS RAIL ---
 class AccountsRail extends StatelessWidget {
   final List<Map<String, dynamic>> accounts;
+  final bool isHidden;
 
-  const AccountsRail({super.key, required this.accounts});
+  const AccountsRail({
+    super.key, 
+    required this.accounts,
+    this.isHidden = false,
+  });
   
   @override
   Widget build(BuildContext context) {
-    if (accounts.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+
+    // ✅ Empty State: Simple text instead of a big card
+    if (accounts.isEmpty) {
+      return Container(
+        height: 100,
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.account_balance_wallet_outlined, color: theme.colorScheme.outline),
+            const SizedBox(height: 8),
+            Text(
+              "No accounts added", 
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant)
+            ),
+          ],
+        ),
+      );
+    }
 
     return SizedBox(
-      height: 140, 
+      height: 150, 
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: accounts.length,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        // ✅ Removed "+ 1" logic. It strictly shows the accounts.
+        itemCount: accounts.length, 
         itemBuilder: (context, index) {
           final acc = accounts[index];
           return _buildAccountCard(context, acc);
@@ -289,9 +319,10 @@ class AccountsRail extends StatelessWidget {
   }
 
   Widget _buildAccountCard(BuildContext context, Map<String, dynamic> account) {
+    final theme = Theme.of(context);
     final currencyFormat = NumberFormat.compactCurrency(symbol: UserService().currencySymbol);
     
-    // ✅ Formatter for the dialog (Exact figure)
+    // Formatter for the dialog (Exact figure)
     final fullCurrencyFormat = NumberFormat.currency(
       symbol: UserService().currencySymbol, 
       decimalDigits: 2
@@ -299,73 +330,99 @@ class AccountsRail extends StatelessWidget {
 
     final balance = (account['balance'] as num).toDouble();
     final type = account['type'] ?? 'cash';
-    final theme = Theme.of(context);
+    final bool isCredit = account['is_credit'] ?? false;
 
-    IconData icon = Icons.account_balance_wallet;
-    if (type == 'bank') icon = Icons.account_balance;
-    if (type == 'credit') icon = Icons.credit_card;
+    // --- SMART DISPLAY LOGIC FOR RAIL ---
+    String amountToDisplay = currencyFormat.format(balance);
+    Color amountColor = theme.textTheme.titleMedium!.color!;
+    String iconStr;
+
+    switch (type) {
+      case 'cash': iconStr = '💵'; break;
+      case 'bank': iconStr = '🏦'; break;
+      case 'credit': iconStr = '💳'; break;
+      case 'wallet': iconStr = '👛'; break;
+      case 'investment': iconStr = '📈'; break;
+      default: iconStr = '📁';
+    }
+
+    if (isCredit && balance < 0) {
+       // Show debt as positive number in RED
+       amountToDisplay = currencyFormat.format(balance.abs());
+       amountColor = theme.colorScheme.error;
+    }
 
     return GestureDetector(
-      // ✅ Handle Tap: Show Exact Figure Dialog
+      // Handle Tap: Show Exact Figure Dialog
       onTap: () {
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: theme.colorScheme.surface,
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-                    shape: BoxShape.circle,
+          builder: (context) {
+            String dialogAmount = fullCurrencyFormat.format(balance);
+            Color dialogColor = balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor;
+            
+            if (isCredit && balance < 0) {
+              dialogAmount = fullCurrencyFormat.format(balance.abs());
+              dialogColor = theme.colorScheme.error;
+            }
+
+            return AlertDialog(
+              backgroundColor: theme.colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(iconStr, style: const TextStyle(fontSize: 40)),
                   ),
-                  child: Icon(icon, size: 40, color: theme.colorScheme.primary),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  account['name'] ?? "Unknown",
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Current Balance",
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant
+                  const SizedBox(height: 16),
+                  Text(
+                    account['name'] ?? "Unknown",
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  fullCurrencyFormat.format(balance),
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor,
+                  const SizedBox(height: 8),
+                  Text(
+                    isCredit && balance < 0 ? "Outstanding Debt" : "Current Balance",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant
+                    ),
                   ),
-                  textAlign: TextAlign.center,
+                  const SizedBox(height: 4),
+                  Text(
+                    dialogAmount,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: dialogColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Close"),
                 ),
               ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Close"),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
       child: Container(
-        width: 140,
+        constraints: const BoxConstraints(minWidth: 140),
         margin: const EdgeInsets.only(right: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface, 
+          color: theme.cardTheme.color, 
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+          border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
           boxShadow: [
             BoxShadow(
               color: theme.shadowColor.withOpacity(0.05), 
@@ -378,7 +435,15 @@ class AccountsRail extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(icon, color: theme.colorScheme.primary),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withOpacity(0.4),
+                shape: BoxShape.circle,
+              ),
+              child: Text(iconStr, style: const TextStyle(fontSize: 20)),
+            ),
+            
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -387,16 +452,28 @@ class AccountsRail extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
                   ), 
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  currencyFormat.format(balance),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold
-                  ), 
-                ),
+                
+                if (isHidden)
+                  Text(
+                    "••••••",
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  )
+                else
+                  Text(
+                    amountToDisplay,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: amountColor,
+                    ), 
+                  ),
               ],
             ),
           ],

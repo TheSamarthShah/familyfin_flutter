@@ -88,7 +88,6 @@ class AccountListScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           
-          // FittedBox: If number is HUGE, it shrinks font size instead of cutting off
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -127,6 +126,24 @@ class AccountListScreen extends StatelessWidget {
     final double balance = (account['balance'] as num?)?.toDouble() ?? 0.0;
     final bool isCredit = account['is_credit'] ?? false;
 
+    // --- SMART DISPLAY LOGIC ---
+    String balanceLabel = "Balance";
+    String balanceValue = "\$${balance.toStringAsFixed(2)}";
+    Color balanceColor = balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor;
+
+    if (isCredit) {
+      if (balance < 0) {
+        // Debt: Show as positive number in RED
+        balanceLabel = "Outstanding";
+        balanceValue = "\$${balance.abs().toStringAsFixed(2)}"; 
+        balanceColor = theme.colorScheme.error; 
+      } else if (balance > 0) {
+        // Overpaid: Show as positive number in GREEN
+        balanceLabel = "Credit";
+        balanceColor = AppTheme.incomeColor;
+      }
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
@@ -150,7 +167,7 @@ class AccountListScreen extends StatelessWidget {
           child: Text(displayIcon, style: const TextStyle(fontSize: 22)),
         ),
         
-        // ✅ DESIGN FIX: Badge is now in the title row
+        // Badge is in the title row now
         title: Row(
           children: [
             Flexible(
@@ -176,14 +193,13 @@ class AccountListScreen extends StatelessWidget {
           ],
         ),
         
-        // ✅ DESIGN FIX: Subtitle has full width for Balance
         subtitle: FittedBox(
-          fit: BoxFit.scaleDown, // Shrinks text if it hits the edge
+          fit: BoxFit.scaleDown, 
           alignment: Alignment.centerLeft,
           child: Text(
-            "Balance: ${balance.toStringAsFixed(2)}",
+            "$balanceLabel: $balanceValue", // Uses smart label/value
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor,
+              color: balanceColor, // Uses smart color
               fontWeight: FontWeight.bold,
             ),
           ),
