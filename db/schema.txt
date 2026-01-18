@@ -527,3 +527,5 @@ select cron.schedule(
     ) as request_id;
   $$
 );
+ALTER TABLE logs 
+ADD COLUMN description TEXT;

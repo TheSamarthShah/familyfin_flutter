@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:foundation_app/services/master_data_service.dart';
-// ❌ REMOVE: import 'package:foundation_app/services/translation_service.dart';
 
 class VoiceLogSheet extends StatefulWidget {
   const VoiceLogSheet({super.key});
@@ -16,15 +15,13 @@ class VoiceLogSheet extends StatefulWidget {
 
 class _VoiceLogSheetState extends State<VoiceLogSheet> {
   late stt.SpeechToText _speech;
-  // ❌ REMOVE: final TranslationService _translator = TranslationService();
+  late TextEditingController _textController; // 1. Added Controller
 
   bool _isListening = false;
   bool _isProcessing = false;
   
-  String _text = "Tap the mic and speak naturally...";
   String _status = "Initializing...";
   
-  // Simple list of locales for the "Ear" (Speech-to-Text)
   final List<Map<String, String>> _languages = [
     {'code': 'en_IN', 'name': 'English (India)'},
     {'code': 'hi_IN', 'name': 'Hindi'},
@@ -41,7 +38,14 @@ class _VoiceLogSheetState extends State<VoiceLogSheet> {
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
+    _textController = TextEditingController(); // 2. Initialize
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose(); // 3. Clean up
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
@@ -88,13 +92,22 @@ class _VoiceLogSheetState extends State<VoiceLogSheet> {
 
   void _listen() async {
     if (!_isListening) {
-      setState(() => _isListening = true);
+      setState(() {
+        _isListening = true;
+        _textController.clear(); // Clear old text on new listen
+      });
       
-      // The "Ear" still needs to know which language to listen for
       _speech.listen(
         localeId: _currentLocaleId, 
         onResult: (val) {
-           setState(() => _text = val.recognizedWords);
+           setState(() {
+             // 4. Update controller instead of string variable
+             _textController.text = val.recognizedWords;
+             // Keep cursor at end
+             _textController.selection = TextSelection.fromPosition(
+               TextPosition(offset: _textController.text.length)
+             );
+           });
         },
       );
     } else {
@@ -104,21 +117,22 @@ class _VoiceLogSheetState extends State<VoiceLogSheet> {
   }
 
   Future<void> _processAndSend() async {
-    if (_text.isEmpty || _text.contains("Tap the mic")) return;
+    final textToSend = _textController.text.trim(); // 5. Use edited text
+
+    if (textToSend.isEmpty) return;
 
     setState(() {
       _isProcessing = true;
-      _status = "Analyzing with AI..."; // Skip "Translating" step
+      _status = "Analyzing with AI..."; 
     });
     
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
 
-      // ✅ SEND RAW TEXT DIRECTLY
       await Supabase.instance.client.functions.invoke(
         'process-voice-log',
         body: {
-          'text': _text,       // e.g., "૨૦ રૂપિયાની છાસ"
+          'text': textToSend, 
           'user_id': userId,
         },
       );
@@ -150,65 +164,85 @@ class _VoiceLogSheetState extends State<VoiceLogSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+    return Padding(
+      // 6. Handle Keyboard overlapping
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(color: theme.colorScheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
-          ),
-          Text(_status, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 20),
-          
-          // Simplified Dropdown
-          if (!_isProcessing) 
-            DropdownButton<String>(
-              value: _currentLocaleId,
-              items: _languages.map((l) => DropdownMenuItem(value: l['code'], child: Text(l['name']!))).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _currentLocaleId = val);
-                  _savePreference(val);
-                }
-              },
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(color: theme.colorScheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
             ),
+            Text(_status, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 20),
+            
+            if (!_isProcessing) 
+              DropdownButton<String>(
+                value: _currentLocaleId,
+                items: _languages.map((l) => DropdownMenuItem(value: l['code'], child: Text(l['name']!))).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _currentLocaleId = val);
+                    _savePreference(val);
+                  }
+                },
+              ),
 
-          const SizedBox(height: 20),
-          Text(
-            "\"$_text\"",
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          
-          const SizedBox(height: 40),
+            const SizedBox(height: 20),
 
-          if (_isProcessing)
-             const CircularProgressIndicator()
-          else
-            GestureDetector(
-              onTap: _listen,
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: _isListening ? Colors.red : theme.colorScheme.primary,
-                child: Icon(_isListening ? Icons.mic : Icons.mic_none, color: Colors.white, size: 35),
+            // 7. Replaced Text widget with TextField
+            TextField(
+              controller: _textController,
+              textAlign: TextAlign.center,
+              enabled: !_isListening, // Disable editing while listening
+              maxLines: 4,
+              minLines: 1,
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                hintText: "Tap the mic and speak naturally...",
+                hintStyle: theme.textTheme.headlineSmall?.copyWith(
+                  color: theme.colorScheme.outline.withOpacity(0.5)
+                ),
+                border: InputBorder.none,
               ),
             ),
-          
-          const SizedBox(height: 40),
-          
-          if (!_isListening && !_isProcessing && _text != "Tap the mic and speak naturally...")
-             ElevatedButton(
-               onPressed: _processAndSend,
-               child: const Text("Create Draft Log"),
-             ),
-          const SizedBox(height: 20),
-        ],
+            
+            if (!_isListening && _textController.text.isNotEmpty)
+              Text("Tap text to edit", style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+
+            const SizedBox(height: 40),
+
+            if (_isProcessing)
+               const CircularProgressIndicator()
+            else
+              GestureDetector(
+                onTap: _listen,
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor: _isListening ? Colors.red : theme.colorScheme.primary,
+                  child: Icon(_isListening ? Icons.mic : Icons.mic_none, color: Colors.white, size: 35),
+                ),
+              ),
+            
+            const SizedBox(height: 40),
+            
+            if (!_isListening && !_isProcessing)
+               ElevatedButton(
+                 onPressed: _textController.text.isNotEmpty ? _processAndSend : null,
+                 child: const Text("Create Draft Log"),
+               ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

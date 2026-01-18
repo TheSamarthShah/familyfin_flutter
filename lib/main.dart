@@ -6,14 +6,18 @@ import 'package:foundation_app/screens/management/category_list_screen.dart';
 import 'package:foundation_app/screens/pages/all_logs_screen.dart';
 import 'package:foundation_app/screens/pages/dashboard_screen.dart';
 import 'package:foundation_app/screens/pages/settings_screen.dart';
+import 'package:foundation_app/screens/pages/voice_log_sheet.dart';
 import 'package:foundation_app/services/master_data_service.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:home_widget/home_widget.dart';
 
 import 'core/app_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'services/auth_service.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,15 +38,42 @@ Future<void> main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Only listen for clicks when app is ALREADY running (Warm Start)
+    // Cold start is handled by SplashScreen now to avoid conflicts
+    HomeWidget.widgetClicked.listen(_handleWidgetLaunch);
+  }
+
+  void _handleWidgetLaunch(Uri? uri) {
+    if (uri?.host == 'voice_log') {
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => const VoiceLogSheet(),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       debugShowCheckedModeBanner: false,
-
       theme: AppTheme.getTheme(
         type: FoundationAppType.finance,
         brightness: Brightness.light,
@@ -52,27 +83,24 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.dark,
       ),
       themeMode: ThemeMode.system,
-
       locale: const Locale('en'),
-
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-
       supportedLocales: const [
-        Locale('en'), // English
-        Locale('hi'), // Hindi
-        Locale('gu'), // Gujarati
+        Locale('en'),
+        Locale('hi'),
+        Locale('gu'),
       ],
-
       home: const SplashScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/dashboard': (context) => const DashboardScreen(),
+        // Point to our new Launcher Wrapper
+        '/dashboard': (context) => const DashboardLauncher(), 
         '/all_logs': (context) => const AllLogsScreen(),
         '/categories': (context) => const CategoryListScreen(),
         '/accounts': (context) => const AccountListScreen(),
@@ -90,7 +118,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  final AuthService _authService = AuthService(); // Use the service
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -99,23 +127,37 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkSession() async {
-    // Artificial delay for branding
-    await Future.delayed(const Duration(seconds: 1));
+    // 1. Wait for delay & check widget launch in parallel
+    final results = await Future.wait([
+      Future.delayed(const Duration(seconds: 1)),
+      HomeWidget.initiallyLaunchedFromHomeWidget(),
+    ]);
+
+    final widgetUri = results[1] as Uri?;
+
+    if (!mounted) return;
 
     final session = Supabase.instance.client.auth.currentSession;
 
     if (session == null) {
-      if (mounted) Navigator.pushReplacementNamed(context, '/login');
+      Navigator.pushReplacementNamed(context, '/login');
       return;
     }
 
-    // ✅ FIX: Use AuthService to init session data efficiently
-    // This loads the Currency Symbol into memory before Dashboard opens
     await _authService.initializeUserSession();
-
     if (mounted) {
       await Provider.of<MasterDataProvider>(context, listen: false).initialize();
-      Navigator.pushReplacementNamed(context, '/dashboard');
+    }
+
+    if (mounted) {
+      // 2. Pass "true" if launched by widget
+      final shouldOpenVoice = (widgetUri?.host == 'voice_log');
+      
+      Navigator.pushReplacementNamed(
+        context, 
+        '/dashboard', 
+        arguments: shouldOpenVoice // <--- Passing the signal here
+      );
     }
   }
 
@@ -125,5 +167,41 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// NEW: Wrapper Widget to Handle Auto-Opening the Sheet
+// -----------------------------------------------------------------------------
+class DashboardLauncher extends StatefulWidget {
+  const DashboardLauncher({super.key});
+
+  @override
+  State<DashboardLauncher> createState() => _DashboardLauncherState();
+}
+
+class _DashboardLauncherState extends State<DashboardLauncher> {
+  @override
+  void initState() {
+    super.initState();
+    // Wait for the UI to build, then check if we need to open the sheet
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      // If SplashScreen passed "true", open the sheet immediately
+      if (args == true) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => const VoiceLogSheet(),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Just render the normal Dashboard
+    return const DashboardScreen();
   }
 }

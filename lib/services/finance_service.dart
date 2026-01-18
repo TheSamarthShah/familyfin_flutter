@@ -62,7 +62,6 @@ class FinanceService {
           startDate = DateTime(now.year, 1, 1);
           break;
       }
-
       final response = await _supabase
           .from('view_confirmed_logs')
           .select('amount, type')
