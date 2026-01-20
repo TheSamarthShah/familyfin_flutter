@@ -5,8 +5,8 @@ import 'package:foundation_app/screens/management/account_list_screen.dart';
 import 'package:foundation_app/screens/management/category_list_screen.dart';
 import 'package:foundation_app/screens/pages/all_logs_screen.dart';
 import 'package:foundation_app/screens/pages/dashboard_screen.dart';
+import 'package:foundation_app/screens/pages/quick_log_screen.dart';
 import 'package:foundation_app/screens/pages/settings_screen.dart';
-import 'package:foundation_app/screens/pages/voice_log_sheet.dart';
 import 'package:foundation_app/services/master_data_service.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,8 +49,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Only listen for clicks when app is ALREADY running (Warm Start)
-    // Cold start is handled by SplashScreen now to avoid conflicts
+    // Listen for widget clicks when app is in background (Warm Start)
     HomeWidget.widgetClicked.listen(_handleWidgetLaunch);
   }
 
@@ -58,12 +57,8 @@ class _MyAppState extends State<MyApp> {
     if (uri?.host == 'voice_log') {
       final context = navigatorKey.currentContext;
       if (context != null) {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) => const VoiceLogSheet(),
-        );
+        // 2. Direct navigation to QuickLogScreen (No data loading needed)
+        Navigator.of(context).pushNamed('/quick_log');
       }
     }
   }
@@ -99,8 +94,8 @@ class _MyAppState extends State<MyApp> {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        // Point to our new Launcher Wrapper
-        '/dashboard': (context) => const DashboardLauncher(), 
+        '/dashboard': (context) => const DashboardScreen(),
+        '/quick_log': (context) => const QuickLogScreen(), 
         '/all_logs': (context) => const AllLogsScreen(),
         '/categories': (context) => const CategoryListScreen(),
         '/accounts': (context) => const AccountListScreen(),
@@ -123,41 +118,41 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkSession();
+    _decideNavigation();
   }
 
-  Future<void> _checkSession() async {
-    // 1. Wait for delay & check widget launch in parallel
+  Future<void> _decideNavigation() async {
+    // 4. Check for Widget Launch WITHOUT waiting for Master Data
     final results = await Future.wait([
-      Future.delayed(const Duration(seconds: 1)),
+      Future.delayed(const Duration(milliseconds: 500)), // Short delay for animation
       HomeWidget.initiallyLaunchedFromHomeWidget(),
     ]);
 
     final widgetUri = results[1] as Uri?;
+    final isWidgetLaunch = (widgetUri?.host == 'voice_log');
 
     if (!mounted) return;
 
     final session = Supabase.instance.client.auth.currentSession;
 
+    // Security Check
     if (session == null) {
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
 
+    // 5. FAST TRACK: If launched by widget, skip MasterData loading
+    if (isWidgetLaunch) {
+      Navigator.pushReplacementNamed(context, '/quick_log');
+      return;
+    }
+
+    // 6. SLOW TRACK: Normal Launch
+    // Only load heavy data if going to the Dashboard
     await _authService.initializeUserSession();
     if (mounted) {
       await Provider.of<MasterDataProvider>(context, listen: false).initialize();
-    }
-
-    if (mounted) {
-      // 2. Pass "true" if launched by widget
-      final shouldOpenVoice = (widgetUri?.host == 'voice_log');
-      
-      Navigator.pushReplacementNamed(
-        context, 
-        '/dashboard', 
-        arguments: shouldOpenVoice // <--- Passing the signal here
-      );
+      Navigator.pushReplacementNamed(context, '/dashboard');
     }
   }
 
@@ -167,41 +162,5 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// NEW: Wrapper Widget to Handle Auto-Opening the Sheet
-// -----------------------------------------------------------------------------
-class DashboardLauncher extends StatefulWidget {
-  const DashboardLauncher({super.key});
-
-  @override
-  State<DashboardLauncher> createState() => _DashboardLauncherState();
-}
-
-class _DashboardLauncherState extends State<DashboardLauncher> {
-  @override
-  void initState() {
-    super.initState();
-    // Wait for the UI to build, then check if we need to open the sheet
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final args = ModalRoute.of(context)?.settings.arguments;
-      // If SplashScreen passed "true", open the sheet immediately
-      if (args == true) {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) => const VoiceLogSheet(),
-        );
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Just render the normal Dashboard
-    return const DashboardScreen();
   }
 }
